@@ -1,0 +1,13 @@
+﻿  Determinando os projetos a serem restaurados...
+  Todos os projetos est├úo atualizados para restaura├º├úo.
+C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\Controllers\ServiceOrdersController.cs(28,35): error CS1061: ÔÇÿServiceOrderÔÇÖ n├úo cont├®m uma defini├º├úo para "Appointment" e n├úo foi poss├¡vel encontrar nenhum m├®todo de extens├úo "Appointment" que aceite um primeiro argumento do tipo ÔÇÿServiceOrderÔÇÖ (voc├¬ est├í se esquecendo de usar uma diretiva ou uma refer├¬ncia de assembly?) [C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\OticaERP.API.csproj]
+C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\Controllers\ServiceOrdersController.cs(27,58): warning CS8602: Desrefer├¬ncia de uma refer├¬ncia possivelmente nula. [C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\OticaERP.API.csproj]
+
+FALHA da compila├º├úo.
+
+C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\Controllers\ServiceOrdersController.cs(27,58): warning CS8602: Desrefer├¬ncia de uma refer├¬ncia possivelmente nula. [C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\OticaERP.API.csproj]
+C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\Controllers\ServiceOrdersController.cs(28,35): error CS1061: ÔÇÿServiceOrderÔÇÖ n├úo cont├®m uma defini├º├úo para "Appointment" e n├úo foi poss├¡vel encontrar nenhum m├®todo de extens├úo "Appointment" que aceite um primeiro argumento do tipo ÔÇÿServiceOrderÔÇÖ (voc├¬ est├í se esquecendo de usar uma diretiva ou uma refer├¬ncia de assembly?) [C:\Users\Wilker\OneDrive\Desktop\SistemaOtica\OticaERP.API\OticaERP.API.csproj]
+    1 Aviso(s)
+    1 Erro(s)
+
+Tempo Decorrido 00:00:01.27
