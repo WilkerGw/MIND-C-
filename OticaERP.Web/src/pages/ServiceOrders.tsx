@@ -4,7 +4,7 @@ import {
     TableHead, TableRow, Chip, Select, MenuItem, FormControl,
     Button, Collapse, IconButton, Grid
 } from '@mui/material';
-import { KeyboardArrowDown, KeyboardArrowUp } from '@mui/icons-material';
+import { KeyboardArrowDown, KeyboardArrowUp, Print } from '@mui/icons-material';
 import api from '../services/api';
 
 interface ServiceOrder {
@@ -34,7 +34,6 @@ export default function ServiceOrders() {
     async function loadOrders() {
         try {
             const response = await api.get('/serviceorders');
-            console.log("Dados recebidos da API:", response.data); // Para debug no F12
             setOrders(response.data);
         } catch (error) {
             console.error("Erro ao carregar O.S.", error);
@@ -43,7 +42,6 @@ export default function ServiceOrders() {
 
     async function updateStatus(id: number, newStatus: string) {
         try {
-            // Agora enviamos um Objeto JSON padrão { status: "..." }
             await api.put(`/serviceorders/${id}/status`, { status: newStatus });
             loadOrders();
         } catch (error) {
@@ -53,7 +51,6 @@ export default function ServiceOrders() {
 
     async function updateExamResult(id: number, result: string) {
         try {
-            // Agora enviamos um Objeto JSON padrão { result: "..." }
             await api.put(`/serviceorders/${id}/exam-result`, { result: result });
             loadOrders();
         } catch (error) {
@@ -75,7 +72,7 @@ export default function ServiceOrders() {
                             <TableCell><strong>Tipo</strong></TableCell>
                             <TableCell><strong>Cliente</strong></TableCell>
                             <TableCell><strong>Status Atual</strong></TableCell>
-                            <TableCell><strong>Resultado (Exames)</strong></TableCell>
+                            <TableCell><strong>Resultado / Ações</strong></TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -97,12 +94,10 @@ export default function ServiceOrders() {
 function Row({ row, onUpdateStatus, onUpdateResult }: { row: ServiceOrder, onUpdateStatus: any, onUpdateResult: any }) {
     const [open, setOpen] = useState(false);
 
-    // LÓGICA ROBUSTA: Converte para número para garantir a comparação
-    // Tipo 2 = Exame, Tipo 0 = Venda, Tipo 1 = Manutenção (se houver)
+    // Tipos: 0 = Venda, 1 = Manutencao, 2 = Exame
     const isExam = Number(row.type) === 2;
     const isSale = Number(row.type) === 0;
 
-    // Limpa possíveis espaços ou aspas extras que vieram do banco antigo
     const cleanStatus = row.status ? row.status.replace(/"/g, '').trim() : "";
 
     const statusOptions = isSale
@@ -111,6 +106,24 @@ function Row({ row, onUpdateStatus, onUpdateResult }: { row: ServiceOrder, onUpd
 
     const displayDate = new Date(row.createdDate).toLocaleDateString('pt-BR');
     const clientName = isSale ? row.sale?.client?.fullName : row.appointment?.client?.fullName;
+
+    // Função para Baixar PDF
+    async function handlePrint() {
+        try {
+            const response = await api.get(`/serviceorders/${row.id}/pdf`, {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `OS_${row.id}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            alert('Erro ao gerar PDF. Verifique se o Backend está rodando.');
+        }
+    }
 
     return (
         <>
@@ -124,8 +137,8 @@ function Row({ row, onUpdateStatus, onUpdateResult }: { row: ServiceOrder, onUpd
                 <TableCell>{displayDate}</TableCell>
                 <TableCell>
                     <Chip
-                        label={isSale ? "VENDA" : "EXAME"}
-                        color={isSale ? "success" : "warning"}
+                        label={isSale ? "VENDA" : (isExam ? "EXAME" : "MANUTENÇÃO")}
+                        color={isSale ? "success" : (isExam ? "warning" : "default")}
                         size="small"
                     />
                 </TableCell>
@@ -144,25 +157,32 @@ function Row({ row, onUpdateStatus, onUpdateResult }: { row: ServiceOrder, onUpd
                     </FormControl>
                 </TableCell>
                 <TableCell>
-                    {/* Botões só aparecem se for EXAME e Status for "Compareceu" */}
-                    {isExam && cleanStatus === "Compareceu" && (
-                        <Box display="flex" gap={1}>
-                            <Button
-                                variant={row.examResult === "Comprou" ? "contained" : "outlined"}
-                                color="success" size="small"
-                                onClick={() => onUpdateResult(row.id, "Comprou")}
-                            >
-                                Comprou
-                            </Button>
-                            <Button
-                                variant={row.examResult === "Não Comprou" ? "contained" : "outlined"}
-                                color="error" size="small"
-                                onClick={() => onUpdateResult(row.id, "Não Comprou")}
-                            >
-                                Não Comprou
-                            </Button>
-                        </Box>
-                    )}
+                    <Box display="flex" alignItems="center" gap={1}>
+                        {/* Botão de Imprimir */}
+                        <IconButton onClick={handlePrint} color="primary" title="Imprimir O.S.">
+                            <Print />
+                        </IconButton>
+
+                        {/* Botões de Exame (Só aparecem se for Exame e Compareceu) */}
+                        {isExam && cleanStatus === "Compareceu" && (
+                            <>
+                                <Button
+                                    variant={row.examResult === "Comprou" ? "contained" : "outlined"}
+                                    color="success" size="small" sx={{ fontSize: '0.7rem' }}
+                                    onClick={() => onUpdateResult(row.id, "Comprou")}
+                                >
+                                    Comprou
+                                </Button>
+                                <Button
+                                    variant={row.examResult === "Não Comprou" ? "contained" : "outlined"}
+                                    color="error" size="small" sx={{ fontSize: '0.7rem' }}
+                                    onClick={() => onUpdateResult(row.id, "Não Comprou")}
+                                >
+                                    Não
+                                </Button>
+                            </>
+                        )}
+                    </Box>
                 </TableCell>
             </TableRow>
 
@@ -174,6 +194,7 @@ function Row({ row, onUpdateStatus, onUpdateResult }: { row: ServiceOrder, onUpd
                             {isSale && row.sale && (
                                 <Grid container spacing={2}>
                                     <Grid item xs={4}><Typography variant="body2"><strong>Produto:</strong> {row.sale.product?.name}</Typography></Grid>
+                                    <Grid item xs={4}><Typography variant="body2"><strong>Cód:</strong> {row.sale.product?.productCode}</Typography></Grid>
                                     <Grid item xs={4}><Typography variant="body2"><strong>Valor:</strong> R$ {row.sale.totalValue.toFixed(2)}</Typography></Grid>
                                 </Grid>
                             )}
