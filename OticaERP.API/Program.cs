@@ -11,13 +11,12 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // 2. Configurar CORS (Permitir TUDO para desenvolvimento)
-// Isso resolve o erro de bloqueio entre a porta 5173 e 5175
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp",
-        policy => policy.AllowAnyOrigin()  // Aceita qualquer origem
-                        .AllowAnyMethod()  // Aceita GET, POST, PUT, DELETE
-                        .AllowAnyHeader()); // Aceita qualquer cabeçalho
+        policy => policy.AllowAnyOrigin()
+                        .AllowAnyMethod()
+                        .AllowAnyHeader());
 });
 
 // 3. Configurar Autenticação JWT
@@ -46,21 +45,29 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Pipeline de requisição
+// --- ÁREA DE RESET DO BANCO DE DADOS (USAR APENAS EM DESENVOLVIMENTO) ---
+// Isto vai apagar e recriar o banco sempre que o servidor reiniciar.
+// Remove isto quando o sistema estiver estável!
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    // Apaga o banco antigo se existir (resolve o erro de "Table already exists")
+    db.Database.EnsureDeleted(); 
+    // Cria o banco novo limpo (sem precisar rodar 'dotnet ef database update')
+    db.Database.Migrate();
+}
+// -------------------------------------------------------------------------
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// APLICA A REGRA DE LIBERAÇÃO DO CORS
 app.UseCors("AllowReactApp");
-
 app.UseHttpsRedirection();
-
 app.UseAuthentication(); 
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

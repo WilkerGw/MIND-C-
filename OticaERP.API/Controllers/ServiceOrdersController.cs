@@ -1,20 +1,11 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OticaERP.API.Data;
 using OticaERP.API.DTOs;
 using OticaERP.API.Models;
-using iText.Kernel.Pdf;
-using iText.Kernel.Font;
-using iText.IO.Font.Constants;
-using iText.Layout;
-using iText.Layout.Element;
-using iText.Layout.Properties;
-using System.IO;
 
 namespace OticaERP.API.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class ServiceOrdersController : ControllerBase
@@ -26,117 +17,131 @@ namespace OticaERP.API.Controllers
             _context = context;
         }
 
-        // Listar todas as Ordens de Serviço
+        // GET: api/ServiceOrders
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ServiceOrder>>> GetServiceOrders()
+        public async Task<ActionResult<IEnumerable<ServiceOrderDto>>> GetServiceOrders()
         {
-            return await _context.ServiceOrders
-                .Include(os => os.Sale).ThenInclude(s => s.Client)
-                .Include(os => os.Sale).ThenInclude(s => s.Product) // Inclui Produto para o PDF
-                .Include(os => os.Appointment).ThenInclude(a => a.Client)
-                .OrderByDescending(os => os.CreatedDate)
-                .ToListAsync();
-        }
-
-        // Atualizar Status
-        [HttpPut("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusDto dto)
-        {
-            var order = await _context.ServiceOrders.FindAsync(id);
-            if (order == null) return NotFound();
-
-            order.Status = dto.Status;
-            await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Status atualizado.", Order = order });
-        }
-        
-        // Atualizar Resultado do Exame
-        [HttpPut("{id}/exam-result")]
-        public async Task<IActionResult> UpdateExamResult(int id, [FromBody] UpdateExamResultDto dto)
-        {
-            var order = await _context.ServiceOrders.FindAsync(id);
-            if (order == null) return NotFound();
-            
-            if (order.Type != ServiceOrderType.Exame) 
-                return BadRequest("Apenas exames podem ter resultado de compra.");
-
-            order.ExamResult = dto.Result;
-            await _context.SaveChangesAsync();
-
-            return Ok(new { Message = "Resultado do exame atualizado.", Order = order });
-        }
-
-        // GERAR PDF DA ORDEM DE SERVIÇO
-        [HttpGet("{id}/pdf")]
-        public async Task<IActionResult> GeneratePdf(int id)
-        {
-            var order = await _context.ServiceOrders
-                .Include(os => os.Sale).ThenInclude(s => s.Client)
-                .Include(os => os.Sale).ThenInclude(s => s.Product)
-                .Include(os => os.Appointment).ThenInclude(a => a.Client)
-                .FirstOrDefaultAsync(os => os.Id == id);
-
-            if (order == null) return NotFound("Ordem de serviço não encontrada.");
-
-            using (var memoryStream = new MemoryStream())
-            {
-                var writer = new PdfWriter(memoryStream);
-                var pdf = new PdfDocument(writer);
-                var document = new Document(pdf);
-                
-                var fontBold = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
-
-                // Cabeçalho
-                // Cabeçalho
-                document.Add(new Paragraph(new Text($"ORDEM DE SERVIÇO #{order.Id}").SetFont(fontBold).SetFontSize(20))
-                    .SetTextAlignment(TextAlignment.CENTER));
-
-                document.Add(new Paragraph($"Data: {order.CreatedDate:dd/MM/yyyy HH:mm}")
-                    .SetTextAlignment(TextAlignment.CENTER));
-                
-                document.Add(new Paragraph("\n"));
-
-                // Detalhes
-                if (order.Type == ServiceOrderType.Venda && order.Sale != null)
+            var serviceOrders = await _context.ServiceOrders
+                .Include(so => so.Client)
+                .Include(so => so.Product)
+                .Select(so => new ServiceOrderDto
                 {
-                    document.Add(new Paragraph(new Text($"CLIENTE: {order.Sale.Client?.FullName ?? "N/A"}").SetFont(fontBold)));
-                    document.Add(new Paragraph($"CPF: {order.Sale.Client?.Cpf ?? "N/A"}"));
-                    document.Add(new Paragraph("--------------------------------------------------"));
-                    document.Add(new Paragraph(new Text("PRODUTO VENDIDO:").SetFont(fontBold)));
-                    document.Add(new Paragraph($"{order.Sale.Product?.Name} (Cód: {order.Sale.Product?.ProductCode})"));
-                    document.Add(new Paragraph(new Text($"VALOR TOTAL: {order.Sale.TotalValue:C}").SetFont(fontBold)));
-                    document.Add(new Paragraph($"STATUS ATUAL: {order.Status}"));
-                }
-                else if (order.Type == ServiceOrderType.Exame && order.Appointment != null)
-                {
-                    document.Add(new Paragraph(new Text($"PACIENTE: {order.Appointment.Client?.FullName ?? "N/A"}").SetFont(fontBold)));
-                    document.Add(new Paragraph($"TELEFONE: {order.Appointment.Client?.Phone ?? "N/A"}"));
-                    document.Add(new Paragraph("--------------------------------------------------"));
-                    document.Add(new Paragraph(new Text("AGENDAMENTO DE EXAME").SetFont(fontBold)));
-                    document.Add(new Paragraph($"Data/Hora: {order.Appointment.AppointmentDate:dd/MM/yyyy HH:mm}"));
-                    document.Add(new Paragraph($"STATUS: {order.Status}"));
+                    Id = so.Id,
+                    ClientId = so.ClientId,
+                    // CORREÇÃO: Usando FullName conforme o modelo Client
+                    ClientName = so.Client != null ? so.Client.FullName : "Cliente não encontrado",
                     
-                     if (!string.IsNullOrEmpty(order.ExamResult))
-                    {
-                        document.Add(new Paragraph(new Text($"RESULTADO: {order.ExamResult}").SetFont(fontBold)));
-                    }
-                }
-                else if (order.Type == ServiceOrderType.Manutencao)
-                {
-                     document.Add(new Paragraph(new Text("MANUTENÇÃO DE ÓCULOS").SetFont(fontBold)));
-                     document.Add(new Paragraph($"STATUS: {order.Status}"));
-                }
+                    ProductId = so.ProductId,
+                    ProductName = so.Product != null ? so.Product.Name : "Produto não encontrado",
+                    
+                    ServiceType = so.ServiceType.ToString(),
+                    Description = so.Description,
+                    Price = so.Price,
+                    Status = so.Status,
+                    CreatedAt = so.CreatedAt,
+                    DeliveryDate = so.DeliveryDate
+                })
+                .ToListAsync();
 
-                // Rodapé
-                document.Add(new Paragraph("\n\n\n"));
-                document.Add(new Paragraph("_____________________________").SetTextAlignment(TextAlignment.CENTER));
-                document.Add(new Paragraph("Assinatura do Responsável").SetTextAlignment(TextAlignment.CENTER));
+            return Ok(serviceOrders);
+        }
 
-                document.Close();
+        // GET: api/ServiceOrders/5
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ServiceOrderDto>> GetServiceOrder(int id)
+        {
+            var so = await _context.ServiceOrders
+                .Include(s => s.Client)
+                .Include(s => s.Product)
+                .FirstOrDefaultAsync(s => s.Id == id);
 
-                return File(memoryStream.ToArray(), "application/pdf", $"OS_{order.Id}.pdf");
+            if (so == null)
+            {
+                return NotFound();
             }
+
+            var dto = new ServiceOrderDto
+            {
+                Id = so.Id,
+                ClientId = so.ClientId,
+                // CORREÇÃO: Usando FullName
+                ClientName = so.Client != null ? so.Client.FullName : "Cliente não encontrado",
+                
+                ProductId = so.ProductId,
+                ProductName = so.Product != null ? so.Product.Name : "Produto não encontrado",
+                
+                ServiceType = so.ServiceType.ToString(),
+                Description = so.Description,
+                Price = so.Price,
+                Status = so.Status,
+                CreatedAt = so.CreatedAt,
+                DeliveryDate = so.DeliveryDate
+            };
+
+            return Ok(dto);
+        }
+
+        // POST: api/ServiceOrders
+        [HttpPost]
+        public async Task<ActionResult<ServiceOrder>> PostServiceOrder(CreateServiceOrderDto dto)
+        {
+            var client = await _context.Clients.FindAsync(dto.ClientId);
+            if (client == null) return BadRequest("Cliente não encontrado.");
+
+            var product = await _context.Products.FindAsync(dto.ProductId);
+            if (product == null) return BadRequest("Produto não encontrado.");
+
+            if (!Enum.TryParse<ServiceOrderType>(dto.ServiceType, out var serviceTypeEnum))
+            {
+                return BadRequest("Tipo de serviço inválido.");
+            }
+
+            var serviceOrder = new ServiceOrder
+            {
+                ClientId = dto.ClientId,
+                ProductId = dto.ProductId,
+                ServiceType = serviceTypeEnum,
+                Description = dto.Description,
+                Price = dto.Price,
+                Status = "Pendente",
+                CreatedAt = DateTime.UtcNow,
+                DeliveryDate = dto.DeliveryDate
+            };
+
+            _context.ServiceOrders.Add(serviceOrder);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction("GetServiceOrder", new { id = serviceOrder.Id }, new ServiceOrderDto 
+            {
+                Id = serviceOrder.Id,
+                ClientId = serviceOrder.ClientId,
+                // CORREÇÃO: Usando FullName
+                ClientName = client.FullName,
+                ProductId = serviceOrder.ProductId,
+                ProductName = product.Name,
+                ServiceType = serviceOrder.ServiceType.ToString(),
+                Description = serviceOrder.Description,
+                Price = serviceOrder.Price,
+                Status = serviceOrder.Status,
+                CreatedAt = serviceOrder.CreatedAt,
+                DeliveryDate = serviceOrder.DeliveryDate
+            });
+        }
+
+        // PUT: api/ServiceOrders/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateServiceOrderStatusDto dto)
+        {
+            var serviceOrder = await _context.ServiceOrders.FindAsync(id);
+            if (serviceOrder == null)
+            {
+                return NotFound();
+            }
+
+            serviceOrder.Status = dto.Status;
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
     }
 }

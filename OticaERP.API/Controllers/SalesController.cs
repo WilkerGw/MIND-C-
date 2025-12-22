@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OticaERP.API.Data;
@@ -7,7 +6,6 @@ using OticaERP.API.Models;
 
 namespace OticaERP.API.Controllers
 {
-    [Authorize] // Exige estar logado
     [Route("api/[controller]")]
     [ApiController]
     public class SalesController : ControllerBase
@@ -19,78 +17,90 @@ namespace OticaERP.API.Controllers
             _context = context;
         }
 
-        [HttpPost]
-        public async Task<IActionResult> CreateSale(SaleDto dto)
+        // GET: api/Sales
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<SaleDto>>> GetSales()
         {
-            // 1. Buscar Cliente pelo CPF
-            var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == dto.CpfCliente);
-            if (client == null) return NotFound("Cliente não encontrado com este CPF.");
+            return await _context.Sales
+                .Include(s => s.Client)
+                .Include(s => s.Product)
+                .Select(s => new SaleDto
+                {
+                    Id = s.Id,
+                    ClientName = s.Client != null ? s.Client.FullName : "Desconhecido",
+                    ProductName = s.Product != null ? s.Product.Name : "Desconhecido",
+                    Quantity = s.Quantity,
+                    TotalValue = s.TotalValue,
+                    SaleDate = s.SaleDate
+                })
+                .ToListAsync();
+        }
 
-            // 2. Buscar Produto pelo Código
+        // POST: api/Sales
+        [HttpPost]
+        public async Task<IActionResult> CreateSale(CreateSaleDto dto)
+        {
+            // 1. Validar Produto pelo Código
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode == dto.CodigoProduto);
             if (product == null) return NotFound("Produto não encontrado.");
 
-            // 3. Validar Estoque
-            if (product.StockQuantity <= 0) return BadRequest("Produto sem estoque.");
+            if (product.StockQuantity < dto.Quantity) 
+                return BadRequest($"Estoque insuficiente. Disponível: {product.StockQuantity}");
 
-            // 4. Criar a Venda
-            var sale = new Sale
-            {
-                ClientId = client.Id,
-                ProductId = product.Id,
-                TotalValue = dto.ValorTotal,
-                SaleDate = DateTime.UtcNow
-            };
+            // 2. Validar Cliente pelo CPF
+            var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == dto.CpfCliente);
+            if (client == null) return NotFound("Cliente não encontrado.");
 
-            // Iniciar transação para garantir que Venda e OS sejam criadas juntas
+            // 3. Iniciar Transação
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Salvar Venda e Atualizar Estoque
-                product.StockQuantity -= 1;
-                _context.Sales.Add(sale);
-                await _context.SaveChangesAsync(); // Gera o ID da Venda
+                // Criar a Venda
+                var sale = new Sale
+                {
+                    ClientId = client.Id,
+                    ProductId = product.Id,
+                    Quantity = dto.Quantity,
+                    TotalValue = dto.ValorTotal,
+                    SaleDate = DateTime.UtcNow
+                };
 
-                // 5. GERAR ORDEM DE SERVIÇO AUTOMATICAMENTE
+                // Atualizar Estoque
+                product.StockQuantity -= dto.Quantity;
+
+                _context.Sales.Add(sale);
+                await _context.SaveChangesAsync();
+
+                // 4. Gerar OS Automática
                 var serviceOrder = new ServiceOrder
                 {
-                    Type = ServiceOrderType.Venda,
-                    Status = "Aguardando Laboratório", // Status inicial padrão
+                    ServiceType = ServiceOrderType.Venda, 
+                    Status = "Concluído",
+                    Description = $"Venda de {dto.Quantity}x {product.Name}",
+                    Price = dto.ValorTotal,
+                    ProductId = product.Id,
+                    ClientId = client.Id,
                     SaleId = sale.Id,
-                    ClientId = sale.ClientId,
-                    CreatedDate = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    DeliveryDate = DateTime.UtcNow
                 };
 
                 _context.ServiceOrders.Add(serviceOrder);
                 await _context.SaveChangesAsync();
 
+                // Atualizar a Venda com o ID da OS
+                sale.ServiceOrderId = serviceOrder.Id;
+                await _context.SaveChangesAsync();
+
                 await transaction.CommitAsync();
 
-                return Ok(new { Message = "Venda realizada e Ordem de Serviço gerada.", SaleId = sale.Id, ServiceOrderId = serviceOrder.Id });
+                return Ok(new { Message = "Venda realizada com sucesso!", SaleId = sale.Id, ServiceOrderId = serviceOrder.Id });
             }
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
                 return StatusCode(500, "Erro ao processar venda: " + ex.Message);
             }
-        }
-
-        // Endpoint para buscar cliente pelo CPF (usado na tela de venda antes de salvar)
-        [HttpGet("cliente/{cpf}")]
-        public async Task<IActionResult> GetClientByCpf(string cpf)
-        {
-            var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == cpf);
-            if (client == null) return NotFound("Cliente não encontrado.");
-            return Ok(client);
-        }
-        
-        // Endpoint para buscar produto pelo Código
-        [HttpGet("produto/{codigo}")]
-        public async Task<IActionResult> GetProductByCode(string codigo)
-        {
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode == codigo);
-            if (product == null) return NotFound("Produto não encontrado.");
-            return Ok(product);
         }
     }
 }

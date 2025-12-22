@@ -2,8 +2,11 @@ namespace OticaERP.API.Models
 {
     public enum ServiceOrderType
     {
-        Venda,
+        Montagem,
         Manutencao,
-        Exame
+        Conserto,
+        ExameVista,
+        Venda, // Novo tipo adicionado
+        Outro
     }
 }

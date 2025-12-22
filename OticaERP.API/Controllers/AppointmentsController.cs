@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using OticaERP.API.Data;
@@ -6,7 +5,6 @@ using OticaERP.API.Models;
 
 namespace OticaERP.API.Controllers
 {
-    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class AppointmentsController : ControllerBase
@@ -18,55 +16,57 @@ namespace OticaERP.API.Controllers
             _context = context;
         }
 
-        // Listar agendamentos (trazendo dados do cliente junto)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Appointment>>> GetAppointments()
         {
-            return await _context.Appointments.Include(a => a.Client).ToListAsync();
+            return await _context.Appointments
+                .Include(a => a.Client)
+                .ToListAsync();
         }
 
-        // Criar Agendamento + Ordem de Serviço Automática
-        [HttpPost]
-        public async Task<IActionResult> CreateAppointment(Appointment appointment)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Appointment>> GetAppointment(int id)
         {
-            // Valida se o cliente existe
-            var client = await _context.Clients.FindAsync(appointment.ClientId);
-            if (client == null) return BadRequest("Cliente inválido.");
+            var appointment = await _context.Appointments
+                .Include(a => a.Client)
+                .FirstOrDefaultAsync(m => m.Id == id);
 
-            // Abre uma transação (tudo ou nada)
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            if (appointment == null)
             {
-                // 1. Salvar Agendamento
-                _context.Appointments.Add(appointment);
-                await _context.SaveChangesAsync();
-
-                // 2. Gerar Ordem de Serviço Automática (Tipo Exame)
-                var serviceOrder = new ServiceOrder
-                {
-                    Type = ServiceOrderType.Exame,
-                    Status = "Agendado", // Status inicial pedido
-                    AppointmentId = appointment.Id,
-                    ClientId = appointment.ClientId,
-                    CreatedDate = DateTime.UtcNow
-                };
-
-                _context.ServiceOrders.Add(serviceOrder);
-                await _context.SaveChangesAsync();
-
-                // Confirma as duas operações
-                await transaction.CommitAsync();
-                
-                return Ok(new { 
-                    Message = "Agendamento realizado e OS gerada com sucesso.", 
-                    AppointmentId = appointment.Id 
-                });
+                return NotFound();
             }
-            catch (Exception ex)
+
+            return appointment;
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<Appointment>> PostAppointment(Appointment appointment)
+        {
+             // Valida se o cliente existe
+            if (appointment.ClientId > 0 && !await _context.Clients.AnyAsync(c => c.Id == appointment.ClientId))
             {
-                await transaction.RollbackAsync(); // Desfaz tudo se der erro
-                return StatusCode(500, "Erro ao criar agendamento: " + ex.Message);
+                return BadRequest("Cliente não encontrado.");
             }
+
+            _context.Appointments.Add(appointment);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction("GetAppointment", new { id = appointment.Id }, appointment);
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteAppointment(int id)
+        {
+            var appointment = await _context.Appointments.FindAsync(id);
+            if (appointment == null)
+            {
+                return NotFound();
+            }
+
+            _context.Appointments.Remove(appointment);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
     }
 }

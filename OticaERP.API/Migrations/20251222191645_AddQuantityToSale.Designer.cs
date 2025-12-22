@@ -11,8 +11,8 @@ using OticaERP.API.Data;
 namespace OticaERP.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251218185651_UpdateSchema")]
-    partial class UpdateSchema
+    [Migration("20251222191645_AddQuantityToSale")]
+    partial class AddQuantityToSale
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -48,7 +48,7 @@ namespace OticaERP.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Address")
+                    b.Property<string>("City")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Cpf")
@@ -59,15 +59,30 @@ namespace OticaERP.API.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("District")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Email")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Gender")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Phone")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Street")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ZipCode")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -116,6 +131,9 @@ namespace OticaERP.API.Migrations
                     b.Property<int>("ProductId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("SaleDate")
                         .HasColumnType("TEXT");
 
@@ -146,17 +164,24 @@ namespace OticaERP.API.Migrations
                     b.Property<int>("ClientId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime>("CreatedDate")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("EstimatedValue")
+                    b.Property<DateTime>("DeliveryDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ExamResult")
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTime>("OrderDate")
+                    b.Property<decimal>("Price")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("SaleId")
                         .HasColumnType("INTEGER");
@@ -164,18 +189,20 @@ namespace OticaERP.API.Migrations
                     b.Property<int?>("SaleId1")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("ServiceType")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AppointmentId");
 
                     b.HasIndex("ClientId");
+
+                    b.HasIndex("ProductId");
 
                     b.HasIndex("SaleId1");
 
@@ -248,6 +275,12 @@ namespace OticaERP.API.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("OticaERP.API.Models.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("OticaERP.API.Models.Sale", "Sale")
                         .WithMany()
                         .HasForeignKey("SaleId1");
@@ -255,6 +288,8 @@ namespace OticaERP.API.Migrations
                     b.Navigation("Appointment");
 
                     b.Navigation("Client");
+
+                    b.Navigation("Product");
 
                     b.Navigation("Sale");
                 });

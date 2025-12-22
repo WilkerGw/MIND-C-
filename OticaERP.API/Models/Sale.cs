@@ -13,6 +13,9 @@ namespace OticaERP.API.Models
         public DateTime SaleDate { get; set; } = DateTime.UtcNow;
 
         public decimal TotalValue { get; set; }
+        
+        // Novo Campo
+        public int Quantity { get; set; }
 
         public int ProductId { get; set; }
         public Product? Product { get; set; }
