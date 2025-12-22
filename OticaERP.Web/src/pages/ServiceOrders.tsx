@@ -1,213 +1,258 @@
-import { useState, useEffect } from 'react';
-import {
-    Box, Paper, Typography, Table, TableBody, TableCell, TableContainer,
-    TableHead, TableRow, Chip, Select, MenuItem, FormControl,
-    Button, Collapse, IconButton, Grid
-} from '@mui/material';
-import { KeyboardArrowDown, KeyboardArrowUp, Print } from '@mui/icons-material';
+import { useEffect, useState } from 'react';
 import api from '../services/api';
+import {
+  Box,
+  Button,
+  Container,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+  Grid
+} from '@mui/material';
+
+// Interfaces para tipagem dos dados
+interface Client {
+  id: number;
+  fullName: string;
+}
+
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
 
 interface ServiceOrder {
-    id: number;
-    createdDate: string;
-    type: number;
-    status: string;
-    examResult?: string;
-    sale?: {
-        product?: { name: string; productCode: string };
-        totalValue: number;
-        client?: { fullName: string; cpf: string };
-    };
-    appointment?: {
-        appointmentDateTime: string;
-        client?: { fullName: string; phone: string };
-    };
+  id: number;
+  clientId: number;
+  clientName: string;
+  productId: number;
+  productName: string;
+  serviceType: string;
+  description: string;
+  price: number;
+  status: string;
+  createdAt: string;
+  deliveryDate: string;
 }
 
-export default function ServiceOrders() {
-    const [orders, setOrders] = useState<ServiceOrder[]>([]);
+const ServiceOrders = () => {
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  
+  // Estados do Formulário
+  const [selectedClientId, setSelectedClientId] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [serviceType, setServiceType] = useState('Montagem');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [deliveryDate, setDeliveryDate] = useState('');
 
-    useEffect(() => {
-        loadOrders();
-    }, []);
+  // Carregar dados ao iniciar a tela
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    async function loadOrders() {
-        try {
-            const response = await api.get('/serviceorders');
-            setOrders(response.data);
-        } catch (error) {
-            console.error("Erro ao carregar O.S.", error);
-        }
+  const loadData = async () => {
+    try {
+      const [ordersRes, clientsRes, productsRes] = await Promise.all([
+        api.get('/serviceorders'),
+        api.get('/clients'),
+        api.get('/products')
+      ]);
+      setServiceOrders(ordersRes.data);
+      setClients(clientsRes.data);
+      setProducts(productsRes.data);
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      alert("Erro ao carregar dados. Verifique se o backend está rodando.");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedClientId || !selectedProductId || !price || !deliveryDate) {
+      alert("Preencha todos os campos obrigatórios!");
+      return;
     }
 
-    async function updateStatus(id: number, newStatus: string) {
-        try {
-            await api.put(`/serviceorders/${id}/status`, { status: newStatus });
-            loadOrders();
-        } catch (error) {
-            alert('Erro ao atualizar status.');
-        }
+    const newOrder = {
+      clientId: Number(selectedClientId),
+      productId: Number(selectedProductId),
+      serviceType,
+      description,
+      price: Number(price),
+      deliveryDate: new Date(deliveryDate).toISOString()
+    };
+
+    try {
+      await api.post('/serviceorders', newOrder);
+      alert("Ordem de Serviço criada com sucesso!");
+      
+      // Limpar formulário
+      setDescription('');
+      setPrice('');
+      setDeliveryDate('');
+      loadData(); // Recarrega a lista
+    } catch (error) {
+      console.error("Erro ao criar OS:", error);
+      alert("Erro ao criar a Ordem de Serviço.");
     }
+  };
 
-    async function updateExamResult(id: number, result: string) {
-        try {
-            await api.put(`/serviceorders/${id}/exam-result`, { result: result });
-            loadOrders();
-        } catch (error) {
-            alert('Erro ao atualizar resultado do exame.');
-        }
-    }
+  return (
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" gutterBottom>
+        Ordens de Serviço
+      </Typography>
 
-    return (
-        <Box>
-            <Typography variant="h4" gutterBottom>Painel de Ordens de Serviço</Typography>
+      {/* Formulário de Nova OS */}
+      <Paper sx={{ p: 3, mb: 4 }}>
+        <Typography variant="h6" gutterBottom>Nova Ordem de Serviço</Typography>
+        <form onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            {/* Seleção de Cliente */}
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Cliente</InputLabel>
+                <Select
+                  value={selectedClientId}
+                  label="Cliente"
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                >
+                  {clients.map(client => (
+                    <MenuItem key={client.id} value={client.id}>
+                      {client.fullName}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-            <TableContainer component={Paper}>
-                <Table>
-                    <TableHead>
-                        <TableRow sx={{ backgroundColor: '#f5f5f5' }}>
-                            <TableCell />
-                            <TableCell><strong>Nº OS</strong></TableCell>
-                            <TableCell><strong>Data</strong></TableCell>
-                            <TableCell><strong>Tipo</strong></TableCell>
-                            <TableCell><strong>Cliente</strong></TableCell>
-                            <TableCell><strong>Status Atual</strong></TableCell>
-                            <TableCell><strong>Resultado / Ações</strong></TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {orders.map((os) => (
-                            <Row
-                                key={os.id}
-                                row={os}
-                                onUpdateStatus={updateStatus}
-                                onUpdateResult={updateExamResult}
-                            />
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Box>
-    );
-}
+            {/* Seleção de Produto (Armação/Lente) */}
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth>
+                <InputLabel>Produto</InputLabel>
+                <Select
+                  value={selectedProductId}
+                  label="Produto"
+                  onChange={(e) => {
+                    setSelectedProductId(e.target.value);
+                    // Preenche o preço automaticamente ao selecionar produto
+                    const prod = products.find(p => p.id === Number(e.target.value));
+                    if (prod) setPrice(prod.price.toString());
+                  }}
+                >
+                  {products.map(product => (
+                    <MenuItem key={product.id} value={product.id}>
+                      {product.name} - R$ {product.price}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-function Row({ row, onUpdateStatus, onUpdateResult }: { row: ServiceOrder, onUpdateStatus: any, onUpdateResult: any }) {
-    const [open, setOpen] = useState(false);
+            {/* Tipo de Serviço */}
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Tipo de Serviço</InputLabel>
+                <Select
+                  value={serviceType}
+                  label="Tipo de Serviço"
+                  onChange={(e) => setServiceType(e.target.value)}
+                >
+                  <MenuItem value="Montagem">Montagem</MenuItem>
+                  <MenuItem value="Manutencao">Manutenção</MenuItem>
+                  <MenuItem value="Conserto">Conserto</MenuItem>
+                  <MenuItem value="ExameVista">Exame de Vista</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
 
-    // Tipos: 0 = Venda, 1 = Manutencao, 2 = Exame
-    const isExam = Number(row.type) === 2;
-    const isSale = Number(row.type) === 0;
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="Preço (R$)"
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+              />
+            </Grid>
 
-    const cleanStatus = row.status ? row.status.replace(/"/g, '').trim() : "";
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                label="Data de Entrega"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={deliveryDate}
+                onChange={(e) => setDeliveryDate(e.target.value)}
+              />
+            </Grid>
 
-    const statusOptions = isSale
-        ? ["Aguardando Laboratório", "Montagem Finalizada", "Disponível para Retirada", "Entregue"]
-        : ["Agendado", "Compareceu", "Faltou"];
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Descrição / Observações"
+                multiline
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </Grid>
 
-    const displayDate = new Date(row.createdDate).toLocaleDateString('pt-BR');
-    const clientName = isSale ? row.sale?.client?.fullName : row.appointment?.client?.fullName;
+            <Grid item xs={12}>
+              <Button type="submit" variant="contained" color="primary" fullWidth>
+                Salvar Ordem de Serviço
+              </Button>
+            </Grid>
+          </Grid>
+        </form>
+      </Paper>
 
-    // Função para Baixar PDF
-    async function handlePrint() {
-        try {
-            const response = await api.get(`/serviceorders/${row.id}/pdf`, {
-                responseType: 'blob'
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `OS_${row.id}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        } catch (error) {
-            alert('Erro ao gerar PDF. Verifique se o Backend está rodando.');
-        }
-    }
-
-    return (
-        <>
-            <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
-                <TableCell>
-                    <IconButton size="small" onClick={() => setOpen(!open)}>
-                        {open ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
-                    </IconButton>
-                </TableCell>
-                <TableCell>#{row.id}</TableCell>
-                <TableCell>{displayDate}</TableCell>
-                <TableCell>
-                    <Chip
-                        label={isSale ? "VENDA" : (isExam ? "EXAME" : "MANUTENÇÃO")}
-                        color={isSale ? "success" : (isExam ? "warning" : "default")}
-                        size="small"
-                    />
-                </TableCell>
-                <TableCell>{clientName || '---'}</TableCell>
-                <TableCell>
-                    <FormControl size="small" sx={{ minWidth: 180 }}>
-                        <Select
-                            value={cleanStatus}
-                            onChange={(e) => onUpdateStatus(row.id, e.target.value)}
-                            variant="standard"
-                        >
-                            {statusOptions.map(opt => (
-                                <MenuItem key={opt} value={opt}>{opt}</MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                </TableCell>
-                <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
-                        {/* Botão de Imprimir */}
-                        <IconButton onClick={handlePrint} color="primary" title="Imprimir O.S.">
-                            <Print />
-                        </IconButton>
-
-                        {/* Botões de Exame (Só aparecem se for Exame e Compareceu) */}
-                        {isExam && cleanStatus === "Compareceu" && (
-                            <>
-                                <Button
-                                    variant={row.examResult === "Comprou" ? "contained" : "outlined"}
-                                    color="success" size="small" sx={{ fontSize: '0.7rem' }}
-                                    onClick={() => onUpdateResult(row.id, "Comprou")}
-                                >
-                                    Comprou
-                                </Button>
-                                <Button
-                                    variant={row.examResult === "Não Comprou" ? "contained" : "outlined"}
-                                    color="error" size="small" sx={{ fontSize: '0.7rem' }}
-                                    onClick={() => onUpdateResult(row.id, "Não Comprou")}
-                                >
-                                    Não
-                                </Button>
-                            </>
-                        )}
-                    </Box>
-                </TableCell>
-            </TableRow>
-
+      {/* Lista de Ordens de Serviço */}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
             <TableRow>
-                <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
-                    <Collapse in={open} timeout="auto" unmountOnExit>
-                        <Box sx={{ margin: 2, padding: 2, backgroundColor: '#f9f9f9', borderRadius: 2 }}>
-                            <Typography variant="h6" gutterBottom component="div">Detalhes</Typography>
-                            {isSale && row.sale && (
-                                <Grid container spacing={2}>
-                                    <Grid item xs={4}><Typography variant="body2"><strong>Produto:</strong> {row.sale.product?.name}</Typography></Grid>
-                                    <Grid item xs={4}><Typography variant="body2"><strong>Cód:</strong> {row.sale.product?.productCode}</Typography></Grid>
-                                    <Grid item xs={4}><Typography variant="body2"><strong>Valor:</strong> R$ {row.sale.totalValue.toFixed(2)}</Typography></Grid>
-                                </Grid>
-                            )}
-                            {isExam && row.appointment && (
-                                <Grid container spacing={2}>
-                                    <Grid item xs={6}><Typography variant="body2"><strong>Data:</strong> {new Date(row.appointment.appointmentDateTime).toLocaleString('pt-BR')}</Typography></Grid>
-                                    <Grid item xs={6}><Typography variant="body2"><strong>Telefone:</strong> {row.appointment.client?.phone}</Typography></Grid>
-                                </Grid>
-                            )}
-                        </Box>
-                    </Collapse>
-                </TableCell>
+              <TableCell>ID</TableCell>
+              <TableCell>Cliente</TableCell>
+              <TableCell>Produto</TableCell>
+              <TableCell>Serviço</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Preço</TableCell>
+              <TableCell>Entrega</TableCell>
             </TableRow>
-        </>
-    );
-}
+          </TableHead>
+          <TableBody>
+            {serviceOrders.map((os) => (
+              <TableRow key={os.id}>
+                <TableCell>{os.id}</TableCell>
+                <TableCell>{os.clientName}</TableCell>
+                <TableCell>{os.productName}</TableCell>
+                <TableCell>{os.serviceType}</TableCell>
+                <TableCell>{os.status}</TableCell>
+                <TableCell>R$ {os.price.toFixed(2)}</TableCell>
+                <TableCell>{new Date(os.deliveryDate).toLocaleDateString()}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Container>
+  );
+};
+
+export default ServiceOrders;

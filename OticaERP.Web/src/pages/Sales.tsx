@@ -14,6 +14,7 @@ export default function Sales() {
     const [produtoPreco, setProdutoPreco] = useState(0);
 
     const [valorTotal, setValorTotal] = useState(0); // Editável
+    const [quantidade, setQuantidade] = useState(1);
     const [mensagem, setMensagem] = useState<{ tipo: 'success' | 'error', texto: string } | null>(null);
 
     // Buscar Cliente pelo CPF ao sair do campo (onBlur)
@@ -25,7 +26,7 @@ export default function Sales() {
             setMensagem(null);
         } catch (error) {
             setClienteNome('');
-            setMensagem({ type: 'error', texto: 'Cliente não encontrado. Verifique o CPF.' });
+            setMensagem({ tipo: 'error', texto: 'Cliente não encontrado. Verifique o CPF.' });
         }
     }
 
@@ -41,12 +42,12 @@ export default function Sales() {
             setMensagem(null);
 
             if (prod.stockQuantity <= 0) {
-                setMensagem({ type: 'error', texto: 'ATENÇÃO: Produto sem estoque!' });
+                setMensagem({ tipo: 'error', texto: 'ATENÇÃO: Produto sem estoque!' });
             }
         } catch (error) {
             setProdutoNome('');
             setValorTotal(0);
-            setMensagem({ type: 'error', texto: 'Produto não encontrado.' });
+            setMensagem({ tipo: 'error', texto: 'Produto não encontrado.' });
         }
     }
 
@@ -55,22 +56,23 @@ export default function Sales() {
         e.preventDefault();
 
         if (!clienteNome || !produtoNome) {
-            setMensagem({ type: 'error', texto: 'Preencha um cliente e um produto válidos.' });
+            setMensagem({ tipo: 'error', texto: 'Preencha um cliente e um produto válidos.' });
             return;
         }
 
         try {
-            // O Backend espera: CpfCliente, CodigoProduto, ValorTotal
+            // O Backend espera: CpfCliente, CodigoProduto, ValorTotal, Quantity
             const payload = {
                 cpfCliente: cpfCliente,
                 codigoProduto: codProduto,
-                valorTotal: Number(valorTotal)
+                valorTotal: Number(valorTotal),
+                quantity: Number(quantidade)
             };
 
             const response = await api.post('/sales', payload);
 
             setMensagem({
-                type: 'success',
+                tipo: 'success',
                 texto: `Venda realizada! OS #${response.data.serviceOrderId} gerada com sucesso.`
             });
 
@@ -81,11 +83,12 @@ export default function Sales() {
             setProdutoNome('');
             setValorTotal(0);
             setProdutoPreco(0);
+            setQuantidade(1);
 
         } catch (error: any) {
             console.error(error);
             setMensagem({
-                type: 'error',
+                tipo: 'error',
                 texto: error.response?.data?.message || error.response?.data || 'Erro ao realizar venda.'
             });
         }
@@ -96,14 +99,14 @@ export default function Sales() {
             <Typography variant="h4" gutterBottom>Nova Venda</Typography>
 
             {mensagem && (
-                <Alert severity={mensagem.type} sx={{ mb: 2 }}>
+                <Alert severity={mensagem.tipo} sx={{ mb: 2 }}>
                     {mensagem.texto}
                 </Alert>
             )}
 
             <Grid container spacing={3}>
                 {/* Lado Esquerdo: Formulário */}
-                <Grid item xs={12} md={7}>
+                <Grid size={{ xs: 12, md: 7 }}>
                     <Paper elevation={3} sx={{ p: 3 }}>
                         <form onSubmit={handleFinalizarVenda}>
                             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>1. Dados do Cliente</Typography>
@@ -154,17 +157,31 @@ export default function Sales() {
 
                             <Typography variant="h6" sx={{ mb: 2, color: 'green' }}>3. Fechamento</Typography>
                             <Grid container spacing={2}>
-                                <Grid item xs={12} md={6}>
+                                <Grid item xs={12} md={4}>
                                     <TextField
-                                        fullWidth label="Preço de Tabela (R$)"
+                                        fullWidth label="Preço Unitário (R$)"
                                         value={produtoPreco}
                                         disabled
                                         type="number"
                                     />
                                 </Grid>
-                                <Grid item xs={12} md={6}>
+                                <Grid item xs={12} md={4}>
                                     <TextField
-                                        fullWidth label="Valor Final (Editável)"
+                                        fullWidth label="Quantidade"
+                                        value={quantidade}
+                                        onChange={e => {
+                                            const qty = Number(e.target.value);
+                                            setQuantidade(qty);
+                                            setValorTotal(qty * produtoPreco);
+                                        }}
+                                        type="number"
+                                        required
+                                        inputProps={{ min: 1 }}
+                                    />
+                                </Grid>
+                                <Grid item xs={12} md={4}>
+                                    <TextField
+                                        fullWidth label="Valor Total (Editável)"
                                         value={valorTotal}
                                         onChange={e => setValorTotal(Number(e.target.value))}
                                         type="number"
@@ -185,7 +202,7 @@ export default function Sales() {
                 </Grid>
 
                 {/* Lado Direito: Resumo (Visual) */}
-                <Grid item xs={12} md={5}>
+                <Grid size={{ xs: 12, md: 5 }}>
                     <Card sx={{ bgcolor: '#f5f5f5', height: '100%' }}>
                         <CardContent>
                             <Typography variant="h6" gutterBottom>Resumo do Pedido</Typography>
