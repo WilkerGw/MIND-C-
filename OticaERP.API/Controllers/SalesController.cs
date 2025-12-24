@@ -31,6 +31,7 @@ namespace OticaERP.API.Controllers
                     ProductName = s.Product != null ? s.Product.Name : "Desconhecido",
                     Quantity = s.Quantity,
                     TotalValue = s.TotalValue,
+                    EntryValue = s.EntryValue, // Retorna o valor
                     SaleDate = s.SaleDate
                 })
                 .ToListAsync();
@@ -40,28 +41,28 @@ namespace OticaERP.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateSale(CreateSaleDto dto)
         {
-            // 1. Validar Produto pelo Código
+            // 1. Validar Produto
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode == dto.CodigoProduto);
             if (product == null) return NotFound("Produto não encontrado.");
 
             if (product.StockQuantity < dto.Quantity) 
                 return BadRequest($"Estoque insuficiente. Disponível: {product.StockQuantity}");
 
-            // 2. Validar Cliente pelo CPF
+            // 2. Validar Cliente
             var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == dto.CpfCliente);
             if (client == null) return NotFound("Cliente não encontrado.");
 
-            // 3. Iniciar Transação
+            // 3. Transação
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Criar a Venda
                 var sale = new Sale
                 {
                     ClientId = client.Id,
                     ProductId = product.Id,
                     Quantity = dto.Quantity,
                     TotalValue = dto.ValorTotal,
+                    EntryValue = dto.EntryValue, // GRAVA O VALOR DE ENTRADA
                     SaleDate = DateTime.UtcNow
                 };
 
@@ -72,12 +73,15 @@ namespace OticaERP.API.Controllers
                 await _context.SaveChangesAsync();
 
                 // 4. Gerar OS Automática
+                // Calcula o valor restante (Total - Entrada) para constar na OS
+                decimal remainingValue = dto.ValorTotal - dto.EntryValue;
+
                 var serviceOrder = new ServiceOrder
                 {
                     ServiceType = ServiceOrderType.Venda, 
-                    Status = "Concluído",
-                    Description = $"Venda de {dto.Quantity}x {product.Name}",
-                    Price = dto.ValorTotal,
+                    Status = "Pendente", // Se deve valor, fica pendente? (Ajustável)
+                    Description = $"Venda: {dto.Quantity}x {product.Name}. Total: {dto.ValorTotal:C}. Entrada: {dto.EntryValue:C}.",
+                    Price = remainingValue, // Salva o que falta pagar na OS (ou o total, dependendo da tua regra)
                     ProductId = product.Id,
                     ClientId = client.Id,
                     SaleId = sale.Id,
@@ -88,7 +92,6 @@ namespace OticaERP.API.Controllers
                 _context.ServiceOrders.Add(serviceOrder);
                 await _context.SaveChangesAsync();
 
-                // Atualizar a Venda com o ID da OS
                 sale.ServiceOrderId = serviceOrder.Id;
                 await _context.SaveChangesAsync();
 

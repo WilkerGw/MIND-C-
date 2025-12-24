@@ -12,6 +12,8 @@ namespace OticaERP.API.Models
 
         public DateTime AppointmentDate { get; set; }
 
-        public string? Notes { get; set; }
+        // --- CAMPO QUE FALTAVA ---
+        public string Observation { get; set; } = string.Empty;
+        // -------------------------
     }
 }

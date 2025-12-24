@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OticaERP.API.Data;
 
@@ -10,9 +11,11 @@ using OticaERP.API.Data;
 namespace OticaERP.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251224173900_FixSaleRelationship")]
+    partial class FixSaleRelationship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.2");
@@ -29,8 +32,7 @@ namespace OticaERP.API.Migrations
                     b.Property<int>("ClientId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Observation")
-                        .IsRequired()
+                    b.Property<string>("Notes")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -94,48 +96,40 @@ namespace OticaERP.API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Adicao")
-                        .IsRequired()
+                    b.Property<decimal>("Adicao")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Altura")
-                        .IsRequired()
+                    b.Property<decimal>("Altura")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("ClientId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Dnp")
-                        .IsRequired()
+                    b.Property<decimal>("Dnp")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("ExamDate")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Observation")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("OdCilindrico")
-                        .IsRequired()
+                    b.Property<decimal>("OdCilindrico")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("OdEixo")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("OdEsferico")
-                        .IsRequired()
+                    b.Property<decimal>("OdEsferico")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("OeCilindrico")
-                        .IsRequired()
+                    b.Property<decimal>("OeCilindrico")
                         .HasColumnType("TEXT");
 
                     b.Property<int>("OeEixo")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("OeEsferico")
-                        .IsRequired()
+                    b.Property<decimal>("OeEsferico")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

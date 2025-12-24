@@ -7,6 +7,7 @@ namespace OticaERP.API.DTOs
         public string ProductName { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal TotalValue { get; set; }
+        public decimal EntryValue { get; set; } // Exibe na consulta
         public DateTime SaleDate { get; set; }
     }
 
@@ -16,5 +17,6 @@ namespace OticaERP.API.DTOs
         public string CodigoProduto { get; set; } = string.Empty;
         public int Quantity { get; set; }
         public decimal ValorTotal { get; set; }
+        public decimal EntryValue { get; set; } // Recebe no cadastro
     }
 }

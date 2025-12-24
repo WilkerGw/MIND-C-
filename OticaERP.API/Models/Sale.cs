@@ -14,7 +14,10 @@ namespace OticaERP.API.Models
 
         public decimal TotalValue { get; set; }
         
-        // Novo Campo
+        // --- CAMPO RESTAURADO ---
+        public decimal EntryValue { get; set; } // Valor de Entrada
+        // ------------------------
+
         public int Quantity { get; set; }
 
         public int ProductId { get; set; }

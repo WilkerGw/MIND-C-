@@ -21,29 +21,27 @@ namespace OticaERP.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ServiceOrderDto>>> GetServiceOrders()
         {
-            var serviceOrders = await _context.ServiceOrders
+            return await _context.ServiceOrders
                 .Include(so => so.Client)
                 .Include(so => so.Product)
+                .Include(so => so.Sale) // Importante: Incluir a Venda
                 .Select(so => new ServiceOrderDto
                 {
                     Id = so.Id,
-                    ClientId = so.ClientId,
-                    // CORREÇÃO: Usando FullName conforme o modelo Client
-                    ClientName = so.Client != null ? so.Client.FullName : "Cliente não encontrado",
-                    
-                    ProductId = so.ProductId,
-                    ProductName = so.Product != null ? so.Product.Name : "Produto não encontrado",
-                    
+                    ClientName = so.Client != null ? so.Client.FullName : "N/A",
+                    ProductName = so.Product != null ? so.Product.Name : "N/A",
                     ServiceType = so.ServiceType.ToString(),
-                    Description = so.Description,
-                    Price = so.Price,
                     Status = so.Status,
                     CreatedAt = so.CreatedAt,
-                    DeliveryDate = so.DeliveryDate
+                    DeliveryDate = so.DeliveryDate,
+
+                    // --- CÁLCULOS PRECISOS ---
+                    // Se houver venda, usa os dados da venda. Se não, usa 0 ou o preço base.
+                    TotalValue = so.Sale != null ? so.Sale.TotalValue : so.Price,
+                    EntryValue = so.Sale != null ? so.Sale.EntryValue : 0,
+                    RemainingValue = so.Sale != null ? (so.Sale.TotalValue - so.Sale.EntryValue) : so.Price
                 })
                 .ToListAsync();
-
-            return Ok(serviceOrders);
         }
 
         // GET: api/ServiceOrders/5
@@ -53,92 +51,36 @@ namespace OticaERP.API.Controllers
             var so = await _context.ServiceOrders
                 .Include(s => s.Client)
                 .Include(s => s.Product)
-                .FirstOrDefaultAsync(s => s.Id == id);
+                .Include(s => s.Sale)
+                .FirstOrDefaultAsync(m => m.Id == id);
 
-            if (so == null)
-            {
-                return NotFound();
-            }
+            if (so == null) return NotFound();
 
-            var dto = new ServiceOrderDto
+            return new ServiceOrderDto
             {
                 Id = so.Id,
-                ClientId = so.ClientId,
-                // CORREÇÃO: Usando FullName
-                ClientName = so.Client != null ? so.Client.FullName : "Cliente não encontrado",
-                
-                ProductId = so.ProductId,
-                ProductName = so.Product != null ? so.Product.Name : "Produto não encontrado",
-                
+                ClientName = so.Client?.FullName ?? "N/A",
+                ProductName = so.Product?.Name ?? "N/A",
                 ServiceType = so.ServiceType.ToString(),
-                Description = so.Description,
-                Price = so.Price,
                 Status = so.Status,
                 CreatedAt = so.CreatedAt,
-                DeliveryDate = so.DeliveryDate
-            };
+                DeliveryDate = so.DeliveryDate,
 
-            return Ok(dto);
+                // --- CÁLCULOS PRECISOS ---
+                TotalValue = so.Sale != null ? so.Sale.TotalValue : so.Price,
+                EntryValue = so.Sale != null ? so.Sale.EntryValue : 0,
+                RemainingValue = so.Sale != null ? (so.Sale.TotalValue - so.Sale.EntryValue) : so.Price
+            };
         }
 
-        // POST: api/ServiceOrders
-        [HttpPost]
-        public async Task<ActionResult<ServiceOrder>> PostServiceOrder(CreateServiceOrderDto dto)
-        {
-            var client = await _context.Clients.FindAsync(dto.ClientId);
-            if (client == null) return BadRequest("Cliente não encontrado.");
-
-            var product = await _context.Products.FindAsync(dto.ProductId);
-            if (product == null) return BadRequest("Produto não encontrado.");
-
-            if (!Enum.TryParse<ServiceOrderType>(dto.ServiceType, out var serviceTypeEnum))
-            {
-                return BadRequest("Tipo de serviço inválido.");
-            }
-
-            var serviceOrder = new ServiceOrder
-            {
-                ClientId = dto.ClientId,
-                ProductId = dto.ProductId,
-                ServiceType = serviceTypeEnum,
-                Description = dto.Description,
-                Price = dto.Price,
-                Status = "Pendente",
-                CreatedAt = DateTime.UtcNow,
-                DeliveryDate = dto.DeliveryDate
-            };
-
-            _context.ServiceOrders.Add(serviceOrder);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetServiceOrder", new { id = serviceOrder.Id }, new ServiceOrderDto 
-            {
-                Id = serviceOrder.Id,
-                ClientId = serviceOrder.ClientId,
-                // CORREÇÃO: Usando FullName
-                ClientName = client.FullName,
-                ProductId = serviceOrder.ProductId,
-                ProductName = product.Name,
-                ServiceType = serviceOrder.ServiceType.ToString(),
-                Description = serviceOrder.Description,
-                Price = serviceOrder.Price,
-                Status = serviceOrder.Status,
-                CreatedAt = serviceOrder.CreatedAt,
-                DeliveryDate = serviceOrder.DeliveryDate
-            });
-        }
-
-        // PUT: api/ServiceOrders/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateServiceOrderStatusDto dto)
+        // PUT: api/ServiceOrders/5/status
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> UpdateStatus(int id, [FromBody] string newStatus)
         {
             var serviceOrder = await _context.ServiceOrders.FindAsync(id);
-            if (serviceOrder == null)
-            {
-                return NotFound();
-            }
+            if (serviceOrder == null) return NotFound();
 
-            serviceOrder.Status = dto.Status;
+            serviceOrder.Status = newStatus;
             await _context.SaveChangesAsync();
 
             return NoContent();
