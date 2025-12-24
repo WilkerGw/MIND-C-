@@ -10,9 +10,10 @@ import {
     ShoppingCart,
     CalendarMonth,
     Assignment,
-    ExitToApp
+    ExitToApp,
+    Description // Ícone para Receitas
 } from '@mui/icons-material';
-import { useNavigate, Outlet } from 'react-router-dom'; // Outlet renderiza a página atual
+import { useNavigate, Outlet } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 const drawerWidth = 240;
@@ -32,6 +33,7 @@ export default function Layout() {
         { text: 'Vendas', icon: <ShoppingCart />, path: '/sales' },
         { text: 'Agendamentos', icon: <CalendarMonth />, path: '/appointments' },
         { text: 'Ordens de Serviço', icon: <Assignment />, path: '/service-orders' },
+        { text: 'Receitas', icon: <Description />, path: '/prescriptions' }, // Novo Item
     ];
 
     const drawer = (
@@ -65,21 +67,9 @@ export default function Layout() {
     return (
         <Box sx={{ display: 'flex' }}>
             <CssBaseline />
-            <AppBar
-                position="fixed"
-                sx={{
-                    width: { sm: `calc(100% - ${drawerWidth}px)` },
-                    ml: { sm: `${drawerWidth}px` },
-                }}
-            >
+            <AppBar position="fixed" sx={{ width: { sm: `calc(100% - ${drawerWidth}px)` }, ml: { sm: `${drawerWidth}px` } }}>
                 <Toolbar>
-                    <IconButton
-                        color="inherit"
-                        aria-label="open drawer"
-                        edge="start"
-                        onClick={handleDrawerToggle}
-                        sx={{ mr: 2, display: { sm: 'none' } }}
-                    >
+                    <IconButton color="inherit" aria-label="open drawer" edge="start" onClick={handleDrawerToggle} sx={{ mr: 2, display: { sm: 'none' } }}>
                         <MenuIcon />
                     </IconButton>
                     <Typography variant="h6" noWrap component="div">
@@ -87,42 +77,15 @@ export default function Layout() {
                     </Typography>
                 </Toolbar>
             </AppBar>
-
-            <Box
-                component="nav"
-                sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-            >
-                {/* Drawer Mobile */}
-                <Drawer
-                    variant="temporary"
-                    open={mobileOpen}
-                    onClose={handleDrawerToggle}
-                    ModalProps={{ keepMounted: true }}
-                    sx={{
-                        display: { xs: 'block', sm: 'none' },
-                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-                    }}
-                >
+            <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
+                <Drawer variant="temporary" open={mobileOpen} onClose={handleDrawerToggle} ModalProps={{ keepMounted: true }} sx={{ display: { xs: 'block', sm: 'none' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }}>
                     {drawer}
                 </Drawer>
-                {/* Drawer Desktop */}
-                <Drawer
-                    variant="permanent"
-                    sx={{
-                        display: { xs: 'none', sm: 'block' },
-                        '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-                    }}
-                    open
-                >
+                <Drawer variant="permanent" sx={{ display: { xs: 'none', sm: 'block' }, '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth } }} open>
                     {drawer}
                 </Drawer>
             </Box>
-
-            <Box
-                component="main"
-                sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, marginTop: '64px' }}
-            >
-                {/* AQUI É ONDE AS PÁGINAS (CLIENTES, VENDAS...) VÃO APARECER */}
+            <Box component="main" sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` }, marginTop: '64px' }}>
                 <Outlet />
             </Box>
         </Box>
