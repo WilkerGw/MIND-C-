@@ -10,201 +10,261 @@ import {
     TableHead,
     TableRow,
     Chip,
-    IconButton,
-    Tooltip,
-    Select,
+    Button,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
     MenuItem,
-    FormControl
+    Select,
+    FormControl,
+    InputLabel,
+    IconButton,
+    Tooltip
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import PaymentsIcon from '@mui/icons-material/Payments';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import api from '../services/api';
 
-// Interface atualizada com os novos campos
 interface ServiceOrder {
     id: number;
+    manualOrderNumber?: number;
     clientName: string;
     productName: string;
-    serviceType: string;
-    status: string;
-    totalValue: number;     // Total
-    entryValue: number;     // Entrada
-    remainingValue: number; // Saldo
     createdAt: string;
     deliveryDate: string;
+    status: string;
+    description: string;
+    serviceType: string;
+    
+    // Campos Financeiros
+    totalValue: number;
+    entryValue: number;
+    remainingBalance: number;
 }
-
-const STATUS_OPTIONS = [
-    "Aguardando Coleta",
-    "Aguardando Laboratório",
-    "Disponivel para Retirada",
-    "Entregue"
-];
 
 export default function ServiceOrders() {
     const [orders, setOrders] = useState<ServiceOrder[]>([]);
+    const [openModal, setOpenModal] = useState(false);
+    const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null);
+    const [newStatus, setNewStatus] = useState('');
 
-    useEffect(() => {
-        api.get('/serviceorders')
-            .then(response => setOrders(response.data))
-            .catch(error => console.error("Erro ao buscar OS:", error));
-    }, []);
-
-    const handleStatusChange = async (id: number, newStatus: string) => {
+    async function carregarOrders() {
         try {
-            await api.put(`/serviceorders/${id}/status`, `"${newStatus}"`, {
-                headers: { "Content-Type": "application/json" }
-            });
-            setOrders(prev => prev.map(order =>
-                order.id === id ? { ...order, status: newStatus } : order
-            ));
-        } catch (error) {
-            console.error("Erro ao atualizar status", error);
-        }
-    };
-
-    const handleSettleBalance = async (id: number) => {
-        if (!window.confirm("Deseja marcar o saldo como pago?")) return;
-
-        try {
-            await api.put(`/serviceorders/${id}/pay`);
-            // Recarrega a lista para garantir que todos os valores (Total, Entrada, Saldo) estejam sincronizados
             const response = await api.get('/serviceorders');
             setOrders(response.data);
         } catch (error) {
-            console.error("Erro ao quitar saldo", error);
-            alert("Erro ao processar pagamento. Verifique o console.");
+            console.error('Erro ao buscar OS:', error);
         }
-    };
+    }
 
-    const getStatusColor = (status: string) => {
+    useEffect(() => {
+        carregarOrders();
+    }, []);
+
+    function handleEditClick(order: ServiceOrder) {
+        setSelectedOrder(order);
+        setNewStatus(order.status);
+        setOpenModal(true);
+    }
+
+    async function handleSaveStatus() {
+        if (!selectedOrder) return;
+        try {
+            await api.put(`/serviceorders/${selectedOrder.id}`, {
+                status: newStatus
+            });
+            setOpenModal(false);
+            carregarOrders();
+            alert('Status atualizado!');
+        } catch (error) {
+            console.error('Erro ao atualizar status:', error);
+            alert('Erro ao atualizar status');
+        }
+    }
+
+    async function handleDelete(id: number) {
+        if (!confirm('Tem certeza que deseja excluir esta Ordem de Serviço?')) return;
+        
+        try {
+            await api.delete(`/serviceorders/${id}`);
+            carregarOrders();
+        } catch (error) {
+            console.error('Erro ao excluir:', error);
+            alert('Erro ao excluir OS.');
+        }
+    }
+
+    // --- NOVA FUNÇÃO: QUITAR SALDO ---
+    async function handleSettleBalance(id: number) {
+        if (!confirm('Deseja realmente QUITAR o saldo devedor desta OS?')) return;
+
+        try {
+            await api.put(`/serviceorders/${id}/settle`);
+            carregarOrders(); // Recarrega para mostrar saldo zerado
+            alert('Saldo quitado com sucesso!');
+        } catch (error) {
+            console.error('Erro ao quitar:', error);
+            alert('Erro ao processar pagamento.');
+        }
+    }
+
+    function formatCurrency(value: number) {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    }
+
+    function getStatusColor(status: string) {
         switch (status) {
-            case 'Aguardando Coleta': return 'warning';
-            case 'Aguardando Laboratório': return 'info';
-            case 'Disponivel para Retirada': return 'primary';
+            case 'Concluído': return 'success';
             case 'Entregue': return 'success';
+            case 'Em Produção': return 'warning';
+            case 'Aguardando Coleta': return 'info';
+            case 'Cancelado': return 'error';
             default: return 'default';
         }
-    };
+    }
 
     return (
         <Box>
-            <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
-                Ordens de Serviço
+            <Typography variant="h4" gutterBottom>
+                Gestão de Ordens de Serviço
             </Typography>
 
-            <TableContainer component={Paper} elevation={3}>
-                <Table sx={{ minWidth: 650 }}>
-                    <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
                         <TableRow>
-                            <TableCell><strong>ID</strong></TableCell>
-                            <TableCell><strong>Cliente</strong></TableCell>
-                            <TableCell><strong>Produto</strong></TableCell>
-                            <TableCell><strong>Status</strong></TableCell>
-
-                            {/* Novas Colunas Financeiras */}
-                            <TableCell align="right"><strong>Total</strong></TableCell>
-                            <TableCell align="right" sx={{ color: 'primary.main' }}><strong>Entrada</strong></TableCell>
-                            <TableCell align="right" sx={{ color: 'red' }}><strong>Saldo Devedor</strong></TableCell>
-
-                            <TableCell><strong>Entrega</strong></TableCell>
-                            <TableCell align="center"><strong>Ações</strong></TableCell>
+                            <TableCell>Nº OS</TableCell>
+                            <TableCell>Cliente / Produto</TableCell>
+                            <TableCell>Data</TableCell>
+                            <TableCell>Status</TableCell>
+                            
+                            {/* Colunas Financeiras */}
+                            <TableCell>Total</TableCell>
+                            <TableCell>Entrada</TableCell>
+                            <TableCell>Saldo (Deve)</TableCell>
+                            
+                            <TableCell align="center">Ações</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {orders.map((row) => (
-                            <TableRow key={row.id} hover>
-                                <TableCell>#{row.id}</TableCell>
-                                <TableCell>{row.clientName}</TableCell>
-                                <TableCell>{row.productName}</TableCell>
-                                <TableCell sx={{ minWidth: 200 }}>
-                                    <FormControl fullWidth size="small">
-                                        <Select
-                                            value={STATUS_OPTIONS.includes(row.status) ? row.status : "Aguardando Coleta"}
-                                            onChange={(e) => handleStatusChange(row.id, e.target.value)}
-                                            sx={{
-                                                bgcolor: 'white',
-                                                '& .MuiSelect-select': {
-                                                    py: 0.5,
-                                                    display: 'flex',
-                                                    alignItems: 'center'
-                                                }
-                                            }}
-                                            renderValue={(selected) => (
-                                                <Chip
-                                                    label={selected}
-                                                    color={getStatusColor(selected)}
-                                                    size="small"
-                                                    sx={{ fontWeight: 'bold' }}
-                                                />
-                                            )}
-                                        >
-                                            {STATUS_OPTIONS.map((option) => (
-                                                <MenuItem key={option} value={option}>
-                                                    <Chip
-                                                        label={option}
-                                                        color={getStatusColor(option)}
-                                                        size="small"
-                                                        sx={{ cursor: 'pointer', fontWeight: 'bold' }}
-                                                    />
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                    </FormControl>
-                                </TableCell>
-
-                                {/* 1. Valor Total */}
-                                <TableCell align="right">
-                                    R$ {row.totalValue.toFixed(2)}
-                                </TableCell>
-
-                                {/* 2. Valor de Entrada (Azul) */}
-                                <TableCell align="right" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-                                    R$ {row.entryValue.toFixed(2)}
-                                </TableCell>
-
-                                {/* 3. Saldo Devedor (Vermelho ou Verde se pago) */}
-                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
-                                        {row.remainingValue > 0.01 ? (
-                                            <>
-                                                <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 'bold' }}>
-                                                    R$ {row.remainingValue.toFixed(2)}
-                                                </Typography>
-                                                <Tooltip title="Baixar Pagamento">
-                                                    <IconButton
-                                                        size="small"
-                                                        color="success"
-                                                        onClick={() => handleSettleBalance(row.id)}
-                                                    >
-                                                        <PaymentsIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Tooltip>
-                                            </>
-                                        ) : (
-                                            <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 'bold' }}>
-                                                Pago
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                </TableCell>
-
+                        {orders.map((order) => (
+                            <TableRow key={order.id} hover>
                                 <TableCell>
-                                    {new Date(row.deliveryDate).toLocaleDateString()}
+                                    <Typography variant="subtitle2" fontWeight="bold" color="primary">
+                                        #{order.manualOrderNumber ? order.manualOrderNumber : order.id}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell>
+                                    <Typography variant="body2" fontWeight="bold">{order.clientName}</Typography>
+                                    <Typography variant="caption" color="text.secondary">{order.productName}</Typography>
+                                </TableCell>
+                                <TableCell>
+                                    {new Date(order.createdAt).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell>
+                                    <Chip 
+                                        label={order.status} 
+                                        color={getStatusColor(order.status) as any} 
+                                        size="small" 
+                                        variant="outlined"
+                                    />
+                                </TableCell>
+                                
+                                {/* Dados Financeiros */}
+                                <TableCell>{formatCurrency(order.totalValue)}</TableCell>
+                                <TableCell sx={{ color: 'green' }}>{formatCurrency(order.entryValue)}</TableCell>
+                                <TableCell sx={{ color: order.remainingBalance > 0 ? 'error.main' : 'text.disabled', fontWeight: 'bold' }}>
+                                    {formatCurrency(order.remainingBalance)}
                                 </TableCell>
 
                                 <TableCell align="center">
-                                    <Tooltip title="Editar/Detalhes">
-                                        <IconButton size="small" color="primary">
-                                            <EditIcon />
-                                        </IconButton>
-                                    </Tooltip>
+                                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                                        {/* Botão QUITAR (Só aparece se tiver saldo > 0) */}
+                                        {order.remainingBalance > 0 && (
+                                            <Tooltip title="Quitar Saldo Devedor">
+                                                <IconButton 
+                                                    color="success" 
+                                                    size="small" 
+                                                    onClick={() => handleSettleBalance(order.id)}
+                                                    sx={{ bgcolor: '#e8f5e9', mr: 1 }} 
+                                                >
+                                                    <AttachMoneyIcon />
+                                                </IconButton>
+                                            </Tooltip>
+                                        )}
+
+                                        <Tooltip title="Editar Status">
+                                            <IconButton 
+                                                color="primary" 
+                                                size="small" 
+                                                onClick={() => handleEditClick(order)}
+                                            >
+                                                <EditIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                        
+                                        <Tooltip title="Excluir">
+                                            <IconButton 
+                                                color="error" 
+                                                size="small" 
+                                                onClick={() => handleDelete(order.id)}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </Box>
                                 </TableCell>
                             </TableRow>
                         ))}
+                        {orders.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={8} align="center">
+                                    Nenhuma Ordem de Serviço encontrada.
+                                </TableCell>
+                            </TableRow>
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>
+
+            {/* Modal de Edição */}
+            <Dialog open={openModal} onClose={() => setOpenModal(false)}>
+                <DialogTitle>
+                    Atualizar OS #{selectedOrder?.manualOrderNumber || selectedOrder?.id}
+                </DialogTitle>
+                <DialogContent sx={{ minWidth: 320, mt: 1 }}>
+                    <Typography variant="body2" gutterBottom>
+                        <b>Cliente:</b> {selectedOrder?.clientName}
+                    </Typography>
+                    <Typography variant="body2" gutterBottom>
+                        <b>Saldo Devedor:</b> {selectedOrder && formatCurrency(selectedOrder.remainingBalance)}
+                    </Typography>
+                    
+                    <FormControl fullWidth sx={{ mt: 2 }}>
+                        <InputLabel>Novo Status</InputLabel>
+                        <Select
+                            value={newStatus}
+                            label="Novo Status"
+                            onChange={(e) => setNewStatus(e.target.value)}
+                        >
+                            <MenuItem value="Pendente">Pendente</MenuItem>
+                            <MenuItem value="Em Produção">Em Produção</MenuItem>
+                            <MenuItem value="Aguardando Coleta">Aguardando Coleta</MenuItem>
+                            <MenuItem value="Concluído">Concluído</MenuItem>
+                            <MenuItem value="Entregue">Entregue</MenuItem>
+                            <MenuItem value="Cancelado">Cancelado</MenuItem>
+                        </Select>
+                    </FormControl>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setOpenModal(false)}>Cancelar</Button>
+                    <Button onClick={handleSaveStatus} variant="contained" color="primary">
+                        Salvar Alterações
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

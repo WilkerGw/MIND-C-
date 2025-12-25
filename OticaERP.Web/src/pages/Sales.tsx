@@ -13,6 +13,9 @@ import {
 import api from '../services/api';
 
 export default function Sales() {
+    const [dataVenda, setDataVenda] = useState(new Date().toISOString().split('T')[0]);
+    const [numOSManual, setNumOSManual] = useState(''); // Estado para o número da OS
+
     const [cpfCliente, setCpfCliente] = useState('');
     const [clienteNome, setClienteNome] = useState('');
 
@@ -22,10 +25,7 @@ export default function Sales() {
 
     const [valorTotal, setValorTotal] = useState(0);
     const [quantidade, setQuantidade] = useState(1);
-
-    // --- NOVO ESTADO ---
     const [valorEntrada, setValorEntrada] = useState(0);
-    // -------------------
 
     const [mensagem, setMensagem] = useState<{ tipo: 'success' | 'error', texto: string } | null>(null);
 
@@ -69,20 +69,30 @@ export default function Sales() {
             return;
         }
 
+        if (!numOSManual) {
+            setMensagem({ tipo: 'error', texto: 'O Número da Ordem de Serviço é obrigatório.' });
+            return;
+        }
+
         try {
             const payload = {
                 cpfCliente: cpfCliente,
                 codigoProduto: codProduto,
                 valorTotal: Number(valorTotal),
                 quantity: Number(quantidade),
-                entryValue: Number(valorEntrada) // Envia o valor de entrada
+                entryValue: Number(valorEntrada),
+                saleDate: new Date(dataVenda).toISOString(),
+                customOsNumber: Number(numOSManual) // Envia o número manual
             };
 
             const response = await api.post('/sales', payload);
 
+            // Usa o número retornado para exibir
+            const osDisplay = response.data.displayOrderId;
+
             setMensagem({
                 tipo: 'success',
-                texto: `Venda realizada! OS #${response.data.serviceOrderId} gerada com sucesso.`
+                texto: `Venda realizada! OS #${osDisplay} registrada com sucesso.`
             });
 
             // Limpar formulário
@@ -94,6 +104,8 @@ export default function Sales() {
             setProdutoPreco(0);
             setQuantidade(1);
             setValorEntrada(0);
+            setNumOSManual('');
+            setDataVenda(new Date().toISOString().split('T')[0]);
 
         } catch (error: any) {
             console.error(error);
@@ -122,8 +134,38 @@ export default function Sales() {
                 <div className="col-span-12 md:col-span-7">
                     <Paper elevation={3} sx={{ p: 3 }}>
                         <form onSubmit={handleFinalizarVenda}>
+                            
                             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                                1. Dados do Cliente
+                                1. Dados Gerais
+                            </Typography>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                <TextField
+                                    fullWidth
+                                    label="Data da Venda"
+                                    type="date"
+                                    value={dataVenda}
+                                    onChange={e => setDataVenda(e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                    required
+                                />
+                                <TextField
+                                    fullWidth
+                                    label="Número da OS"
+                                    type="number"
+                                    value={numOSManual}
+                                    onChange={e => setNumOSManual(e.target.value)}
+                                    placeholder="Ex: 1050"
+                                    required // Campo Obrigatório
+                                    error={!numOSManual}
+                                    helperText="Digite o número da OS do talão"
+                                />
+                            </div>
+
+                            <Divider sx={{ mb: 3 }} />
+
+                            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+                                2. Dados do Cliente
                             </Typography>
 
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
@@ -148,7 +190,7 @@ export default function Sales() {
                             <Divider sx={{ my: 3 }} />
 
                             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                                2. Dados do Produto
+                                3. Dados do Produto
                             </Typography>
 
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
@@ -173,10 +215,9 @@ export default function Sales() {
                             <Divider sx={{ my: 3 }} />
 
                             <Typography variant="h6" sx={{ mb: 2, color: 'green' }}>
-                                3. Fechamento e Pagamento
+                                4. Fechamento e Pagamento
                             </Typography>
 
-                            {/* Linha 1: Preço e Quantidade */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <TextField
                                     fullWidth label="Preço Unitário (R$)"
@@ -197,7 +238,6 @@ export default function Sales() {
                                 />
                             </div>
 
-                            {/* Linha 2: Valores Financeiros */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <TextField
                                     fullWidth label="Valor Total (R$)"
@@ -235,6 +275,17 @@ export default function Sales() {
                         <CardContent>
                             <Typography variant="h6" gutterBottom>Resumo Financeiro</Typography>
                             <Divider sx={{ mb: 2 }} />
+                            
+                            <Typography variant="subtitle2" color="text.secondary">Data da Venda:</Typography>
+                            <Typography variant="body1" sx={{ mb: 2, fontWeight: 'bold' }}>
+                                {dataVenda.split('-').reverse().join('/')}
+                            </Typography>
+
+                            {/* EXIBE A OS MANUAL NO RESUMO */}
+                            <Typography variant="subtitle2" color="text.secondary">Nº OS (Manual):</Typography>
+                            <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: 'blue' }}>
+                                {numOSManual ? `#${numOSManual}` : '---'}
+                            </Typography>
 
                             <Typography variant="subtitle2" color="text.secondary">Cliente:</Typography>
                             <Typography variant="body1" sx={{ mb: 2, fontWeight: 'bold' }}>{clienteNome || '---'}</Typography>
@@ -255,12 +306,6 @@ export default function Sales() {
                             <Typography variant="h4" color="error.main" sx={{ fontWeight: 'bold' }}>
                                 R$ {(valorTotal - valorEntrada).toFixed(2)}
                             </Typography>
-
-                            <Box sx={{ mt: 4, p: 2, bgcolor: '#e3f2fd', borderRadius: 1 }}>
-                                <Typography variant="caption" color="primary">
-                                    ℹ️ A Ordem de Serviço será gerada com o valor restante a pagar.
-                                </Typography>
-                            </Box>
                         </CardContent>
                     </Card>
                 </div>

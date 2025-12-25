@@ -8,7 +8,7 @@ import Products from "./pages/Products";
 import Sales from "./pages/Sales";
 import Appointments from "./pages/Appointments";
 import ServiceOrders from "./pages/ServiceOrders";
-import Prescriptions from "./pages/Prescriptions"; // Importe a nova tela
+import Prescriptions from "./pages/Prescriptions"; 
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { signed } = useContext(AuthContext);
