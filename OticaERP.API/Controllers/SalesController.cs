@@ -24,6 +24,7 @@ namespace OticaERP.API.Controllers
             return await _context.Sales
                 .Include(s => s.Client)
                 .Include(s => s.Product)
+                .OrderByDescending(s => s.SaleDate)
                 .Select(s => new SaleDto
                 {
                     Id = s.Id,
@@ -31,7 +32,7 @@ namespace OticaERP.API.Controllers
                     ProductName = s.Product != null ? s.Product.Name : "Desconhecido",
                     Quantity = s.Quantity,
                     TotalValue = s.TotalValue,
-                    EntryValue = s.EntryValue, // Retorna o valor
+                    EntryValue = s.EntryValue, 
                     SaleDate = s.SaleDate
                 })
                 .ToListAsync();
@@ -41,6 +42,20 @@ namespace OticaERP.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateSale(CreateSaleDto dto)
         {
+            // --- VALIDAÇÃO DE NÚMERO MANUAL OBRIGATÓRIO ---
+            if (!dto.CustomOsNumber.HasValue || dto.CustomOsNumber.Value <= 0)
+            {
+                return BadRequest("É obrigatório informar o Número da Ordem de Serviço manualmente.");
+            }
+
+            // Verificar duplicidade
+            bool exists = await _context.ServiceOrders.AnyAsync(so => so.ManualOrderNumber == dto.CustomOsNumber.Value);
+            if (exists)
+            {
+                return BadRequest($"Já existe uma Ordem de Serviço com o número {dto.CustomOsNumber.Value}.");
+            }
+            // ------------------------------------------------
+
             // 1. Validar Produto
             var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode == dto.CodigoProduto);
             if (product == null) return NotFound("Produto não encontrado.");
@@ -52,7 +67,11 @@ namespace OticaERP.API.Controllers
             var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == dto.CpfCliente);
             if (client == null) return NotFound("Cliente não encontrado.");
 
-            // 3. Transação
+            // 3. Definir Data
+            DateTime finalSaleDate = dto.SaleDate.HasValue 
+                ? dto.SaleDate.Value.ToUniversalTime() 
+                : DateTime.UtcNow;
+
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
@@ -62,8 +81,8 @@ namespace OticaERP.API.Controllers
                     ProductId = product.Id,
                     Quantity = dto.Quantity,
                     TotalValue = dto.ValorTotal,
-                    EntryValue = dto.EntryValue, // GRAVA O VALOR DE ENTRADA
-                    SaleDate = DateTime.UtcNow
+                    EntryValue = dto.EntryValue,
+                    SaleDate = finalSaleDate
                 };
 
                 // Atualizar Estoque
@@ -72,8 +91,7 @@ namespace OticaERP.API.Controllers
                 _context.Sales.Add(sale);
                 await _context.SaveChangesAsync();
 
-                // 4. Gerar OS Automática
-                // Calcula o valor restante (Total - Entrada) para constar na OS
+                // 4. Gerar OS
                 decimal remainingValue = dto.ValorTotal - dto.EntryValue;
 
                 var serviceOrder = new ServiceOrder
@@ -81,12 +99,15 @@ namespace OticaERP.API.Controllers
                     ServiceType = ServiceOrderType.Venda, 
                     Status = "Aguardando Coleta", 
                     Description = $"Venda: {dto.Quantity}x {product.Name}. Total: {dto.ValorTotal:C}. Entrada: {dto.EntryValue:C}.",
-                    Price = remainingValue, // Salva o que falta pagar na OS (ou o total, dependendo da tua regra)
+                    Price = remainingValue,
                     ProductId = product.Id,
                     ClientId = client.Id,
                     SaleId = sale.Id,
-                    CreatedAt = DateTime.UtcNow,
-                    DeliveryDate = DateTime.UtcNow
+                    CreatedAt = finalSaleDate,
+                    DeliveryDate = finalSaleDate,
+                    
+                    // Grava o número manual OBRIGATÓRIO
+                    ManualOrderNumber = dto.CustomOsNumber.Value 
                 };
 
                 _context.ServiceOrders.Add(serviceOrder);
@@ -97,7 +118,12 @@ namespace OticaERP.API.Controllers
 
                 await transaction.CommitAsync();
 
-                return Ok(new { Message = "Venda realizada com sucesso!", SaleId = sale.Id, ServiceOrderId = serviceOrder.Id });
+                return Ok(new { 
+                    Message = "Venda realizada com sucesso!", 
+                    SaleId = sale.Id, 
+                    ServiceOrderId = serviceOrder.Id,
+                    DisplayOrderId = serviceOrder.ManualOrderNumber // Retorna o número manual
+                });
             }
             catch (Exception ex)
             {

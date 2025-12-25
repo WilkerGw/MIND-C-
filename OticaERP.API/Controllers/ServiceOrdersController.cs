@@ -24,22 +24,26 @@ namespace OticaERP.API.Controllers
             return await _context.ServiceOrders
                 .Include(so => so.Client)
                 .Include(so => so.Product)
-                .Include(so => so.Sale) // Importante: Incluir a Venda
+                .Include(so => so.Sale) // IMPORTANTE: Traz a venda para ler o Total e Entrada
+                .OrderByDescending(so => so.CreatedAt)
                 .Select(so => new ServiceOrderDto
                 {
                     Id = so.Id,
-                    ClientName = so.Client != null ? so.Client.FullName : "N/A",
-                    ProductName = so.Product != null ? so.Product.Name : "N/A",
-                    ServiceType = so.ServiceType.ToString(),
-                    Status = so.Status,
+                    ManualOrderNumber = so.ManualOrderNumber,
                     CreatedAt = so.CreatedAt,
                     DeliveryDate = so.DeliveryDate,
-
-                    // --- CÁLCULOS PRECISOS ---
-                    // Se houver venda, usa os dados da venda. Se não, usa 0 ou o preço base.
-                    TotalValue = so.Sale != null ? so.Sale.TotalValue : so.Price,
+                    Status = so.Status,
+                    ClientName = so.Client != null ? so.Client.FullName : "Cliente Removido",
+                    ProductName = so.Product != null ? so.Product.Name : "Produto Diverso",
+                    Description = so.Description,
+                    ServiceType = so.ServiceType.ToString(),
+                    
+                    // Lógica: Se tem venda, pega de lá. Se não, usa 0.
+                    TotalValue = so.Sale != null ? so.Sale.TotalValue : so.Price, 
                     EntryValue = so.Sale != null ? so.Sale.EntryValue : 0,
-                    RemainingValue = so.Sale != null ? (so.Sale.TotalValue - so.Sale.EntryValue) : so.Price
+                    
+                    // O campo Price na OS armazena o "Saldo a Pagar"
+                    RemainingBalance = so.Price 
                 })
                 .ToListAsync();
         }
@@ -52,59 +56,72 @@ namespace OticaERP.API.Controllers
                 .Include(s => s.Client)
                 .Include(s => s.Product)
                 .Include(s => s.Sale)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .FirstOrDefaultAsync(s => s.Id == id);
 
-            if (so == null) return NotFound();
+            if (so == null) return NotFound("Ordem de Serviço não encontrada.");
 
             return new ServiceOrderDto
             {
                 Id = so.Id,
-                ClientName = so.Client?.FullName ?? "N/A",
-                ProductName = so.Product?.Name ?? "N/A",
-                ServiceType = so.ServiceType.ToString(),
-                Status = so.Status,
+                ManualOrderNumber = so.ManualOrderNumber,
                 CreatedAt = so.CreatedAt,
                 DeliveryDate = so.DeliveryDate,
-
-                // --- CÁLCULOS PRECISOS ---
+                Status = so.Status,
+                ClientName = so.Client != null ? so.Client.FullName : "Cliente Removido",
+                ProductName = so.Product != null ? so.Product.Name : "Produto Diverso",
+                Description = so.Description,
+                ServiceType = so.ServiceType.ToString(),
+                
                 TotalValue = so.Sale != null ? so.Sale.TotalValue : so.Price,
                 EntryValue = so.Sale != null ? so.Sale.EntryValue : 0,
-                RemainingValue = so.Sale != null ? (so.Sale.TotalValue - so.Sale.EntryValue) : so.Price
+                RemainingBalance = so.Price
             };
         }
 
-        // PUT: api/ServiceOrders/5/status
-        [HttpPut("{id}/status")]
-        public async Task<IActionResult> UpdateStatus(int id, [FromBody] string newStatus)
+        // PUT: api/ServiceOrders/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateServiceOrder(int id, UpdateServiceOrderDto dto)
         {
-            var serviceOrder = await _context.ServiceOrders.FindAsync(id);
-            if (serviceOrder == null) return NotFound();
+            var order = await _context.ServiceOrders.FindAsync(id);
+            if (order == null) return NotFound("Ordem de Serviço não encontrada.");
 
-            serviceOrder.Status = newStatus;
+            if (!string.IsNullOrEmpty(dto.Status))
+                order.Status = dto.Status;
+            
+            if (dto.DeliveryDate.HasValue)
+                order.DeliveryDate = dto.DeliveryDate.Value;
+
             await _context.SaveChangesAsync();
 
             return NoContent();
         }
-        
-        // PUT: api/ServiceOrders/5/pay
-        [HttpPut("{id}/pay")]
+
+        // PUT: api/ServiceOrders/5/settle (NOVO: QUITAR SALDO)
+        [HttpPut("{id}/settle")]
         public async Task<IActionResult> SettleBalance(int id)
         {
-            var serviceOrder = await _context.ServiceOrders
-                .Include(so => so.Sale)
-                .FirstOrDefaultAsync(so => so.Id == id);
+            var order = await _context.ServiceOrders.FindAsync(id);
+            if (order == null) return NotFound("Ordem de Serviço não encontrada.");
 
-            if (serviceOrder == null) return NotFound();
-
-            if (serviceOrder.Sale != null)
-            {
-                serviceOrder.Sale.EntryValue = serviceOrder.Sale.TotalValue;
-                _context.Entry(serviceOrder.Sale).State = EntityState.Modified;
-            }
+            // Zera o saldo devedor
+            order.Price = 0; 
             
-            serviceOrder.Price = 0;
-
+            // Opcional: Poderíamos mudar o status para "Concluído" ou "Entregue" aqui se quiséssemos
+            
             await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+        // DELETE: api/ServiceOrders/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteServiceOrder(int id)
+        {
+            var order = await _context.ServiceOrders.FindAsync(id);
+            if (order == null) return NotFound("Ordem de Serviço não encontrada.");
+
+            _context.ServiceOrders.Remove(order);
+            await _context.SaveChangesAsync();
+
             return NoContent();
         }
     }

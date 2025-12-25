@@ -6,7 +6,7 @@ namespace OticaERP.API.Models
         Manutencao,
         Conserto,
         ExameVista,
-        Venda, // Novo tipo adicionado
+        Venda, 
         Outro
     }
 }
