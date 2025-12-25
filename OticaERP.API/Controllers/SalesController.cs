@@ -79,7 +79,7 @@ namespace OticaERP.API.Controllers
                 var serviceOrder = new ServiceOrder
                 {
                     ServiceType = ServiceOrderType.Venda, 
-                    Status = "Pendente", // Se deve valor, fica pendente? (Ajustável)
+                    Status = "Aguardando Coleta", 
                     Description = $"Venda: {dto.Quantity}x {product.Name}. Total: {dto.ValorTotal:C}. Entrada: {dto.EntryValue:C}.",
                     Price = remainingValue, // Salva o que falta pagar na OS (ou o total, dependendo da tua regra)
                     ProductId = product.Id,

@@ -25,7 +25,9 @@ namespace OticaERP.API.Data
                 .Property(s => s.EntryValue).HasColumnType("decimal(18,2)");
 
             modelBuilder.Entity<Product>()
-                .Property(p => p.Price).HasColumnType("decimal(18,2)");
+                .Property(p => p.SellingPrice).HasColumnType("decimal(18,2)");
+            modelBuilder.Entity<Product>()
+                .Property(p => p.CostPrice).HasColumnType("decimal(18,2)");
 
             modelBuilder.Entity<ServiceOrder>()
                 .Property(s => s.Price).HasColumnType("decimal(18,2)");

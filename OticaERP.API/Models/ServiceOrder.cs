@@ -22,7 +22,7 @@ namespace OticaERP.API.Models
         
         public decimal Price { get; set; } // Padronizado como Price (antes era EstimatedValue)
 
-        public string Status { get; set; } = "Pending";
+        public string Status { get; set; } = "Aguardando Coleta";
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow; // Padronizado como CreatedAt
         

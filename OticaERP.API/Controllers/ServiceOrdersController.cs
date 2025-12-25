@@ -85,5 +85,27 @@ namespace OticaERP.API.Controllers
 
             return NoContent();
         }
+        
+        // PUT: api/ServiceOrders/5/pay
+        [HttpPut("{id}/pay")]
+        public async Task<IActionResult> SettleBalance(int id)
+        {
+            var serviceOrder = await _context.ServiceOrders
+                .Include(so => so.Sale)
+                .FirstOrDefaultAsync(so => so.Id == id);
+
+            if (serviceOrder == null) return NotFound();
+
+            if (serviceOrder.Sale != null)
+            {
+                serviceOrder.Sale.EntryValue = serviceOrder.Sale.TotalValue;
+                _context.Entry(serviceOrder.Sale).State = EntityState.Modified;
+            }
+            
+            serviceOrder.Price = 0;
+
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
     }
 }
