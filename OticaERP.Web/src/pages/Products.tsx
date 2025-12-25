@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Box, Button, TextField, Paper, Typography, Grid, Table, TableBody,
     TableCell, TableContainer, TableHead, TableRow, MenuItem, Select, InputLabel, FormControl, Chip
 } from '@mui/material';
 import api from '../services/api';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 
 // Tipagem igual ao Backend (Model Product.cs)
 interface Product {
@@ -12,18 +13,21 @@ interface Product {
     name: string;
     category: number; // Enum no C# é tratado como número por padrão (0, 1, 2...)
     stockQuantity: number;
-    price: number;
+    costPrice: number;
+    sellingPrice: number;
 }
 
 export default function Products() {
     const [products, setProducts] = useState<Product[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const initialForm = {
         productCode: '',
         name: '',
         category: 0, // 0 = Armacao (Valor padrão)
         stockQuantity: 0,
-        price: 0
+        costPrice: 0,
+        sellingPrice: 0
     };
     const [formData, setFormData] = useState<Product>(initialForm);
 
@@ -47,7 +51,8 @@ export default function Products() {
             const payload = {
                 ...formData,
                 stockQuantity: Number(formData.stockQuantity),
-                price: Number(formData.price),
+                costPrice: Number(formData.costPrice),
+                sellingPrice: Number(formData.sellingPrice),
                 category: Number(formData.category)
             };
 
@@ -76,26 +81,66 @@ export default function Products() {
         }
     }
 
+    async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await api.post('/products/import', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            alert(response.data.message);
+            loadProducts();
+        } catch (error) {
+            console.error(error);
+            alert('Erro ao importar produtos. Verifique o formato do arquivo.');
+        } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    }
+
     return (
         <Box>
-            <Typography variant="h4" gutterBottom>Gerenciar Estoque</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h4">Gerenciar Estoque</Typography>
+
+                <Box>
+                    <input
+                        type="file"
+                        accept=".csv"
+                        hidden
+                        ref={fileInputRef}
+                        onChange={handleImport}
+                    />
+                    <Button
+                        variant="outlined"
+                        startIcon={<CloudUploadIcon />}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        Importar CSV
+                    </Button>
+                </Box>
+            </Box>
 
             {/* Formulário */}
             <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
                 <form onSubmit={handleSave}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <TextField fullWidth label="Cód. Produto" required
                                 value={formData.productCode}
                                 onChange={e => setFormData({ ...formData, productCode: e.target.value })} />
                         </Grid>
-                        <Grid item xs={12} md={5}>
+                        <Grid size={{ xs: 12, md: 5 }}>
                             <TextField fullWidth label="Nome do Produto" required
                                 value={formData.name}
                                 onChange={e => setFormData({ ...formData, name: e.target.value })} />
                         </Grid>
 
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <FormControl fullWidth>
                                 <InputLabel>Categoria</InputLabel>
                                 <Select label="Categoria"
@@ -109,18 +154,23 @@ export default function Products() {
                             </FormControl>
                         </Grid>
 
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <TextField fullWidth type="number" label="Qtd. Estoque"
                                 value={formData.stockQuantity}
                                 onChange={e => setFormData({ ...formData, stockQuantity: Number(e.target.value) })} />
                         </Grid>
-                        <Grid item xs={12} md={3}>
-                            <TextField fullWidth type="number" label="Preço (R$)"
-                                value={formData.price}
-                                onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} />
+                        <Grid size={{ xs: 12, md: 3 }}>
+                            <TextField fullWidth type="number" label="Preço de Custo (R$)"
+                                value={formData.costPrice}
+                                onChange={e => setFormData({ ...formData, costPrice: Number(e.target.value) })} />
+                        </Grid>
+                        <Grid size={{ xs: 12, md: 3 }}>
+                            <TextField fullWidth type="number" label="Preço de Venda (R$)"
+                                value={formData.sellingPrice}
+                                onChange={e => setFormData({ ...formData, sellingPrice: Number(e.target.value) })} />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <Button type="submit" variant="contained" color="success">
                                 Salvar Produto
                             </Button>
@@ -138,7 +188,8 @@ export default function Products() {
                             <TableCell>Nome</TableCell>
                             <TableCell>Categoria</TableCell>
                             <TableCell>Estoque</TableCell>
-                            <TableCell>Preço</TableCell>
+                            <TableCell>P. Custo</TableCell>
+                            <TableCell>P. Venda</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -154,7 +205,10 @@ export default function Products() {
                                     {p.stockQuantity}
                                 </TableCell>
                                 <TableCell>
-                                    {p.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    {p.costPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </TableCell>
+                                <TableCell sx={{ fontWeight: 'bold' }}>
+                                    {p.sellingPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </TableCell>
                             </TableRow>
                         ))}

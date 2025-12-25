@@ -14,15 +14,15 @@ import api from '../services/api';
 
 export default function Sales() {
     const [cpfCliente, setCpfCliente] = useState('');
-    const [clienteNome, setClienteNome] = useState(''); 
+    const [clienteNome, setClienteNome] = useState('');
 
     const [codProduto, setCodProduto] = useState('');
-    const [produtoNome, setProdutoNome] = useState(''); 
+    const [produtoNome, setProdutoNome] = useState('');
     const [produtoPreco, setProdutoPreco] = useState(0);
 
-    const [valorTotal, setValorTotal] = useState(0); 
+    const [valorTotal, setValorTotal] = useState(0);
     const [quantidade, setQuantidade] = useState(1);
-    
+
     // --- NOVO ESTADO ---
     const [valorEntrada, setValorEntrada] = useState(0);
     // -------------------
@@ -47,8 +47,8 @@ export default function Sales() {
             const response = await api.get(`/products/${codProduto}`);
             const prod = response.data;
             setProdutoNome(prod.name);
-            setProdutoPreco(prod.price);
-            setValorTotal(prod.price * quantidade); 
+            setProdutoPreco(prod.sellingPrice);
+            setValorTotal(prod.sellingPrice * quantidade);
             setMensagem(null);
 
             if (prod.stockQuantity <= 0) {
@@ -117,7 +117,7 @@ export default function Sales() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                
+
                 {/* Lado Esquerdo: Formulário */}
                 <div className="col-span-12 md:col-span-7">
                     <Paper elevation={3} sx={{ p: 3 }}>
@@ -125,7 +125,7 @@ export default function Sales() {
                             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
                                 1. Dados do Cliente
                             </Typography>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                                 <div className="col-span-12 md:col-span-4">
                                     <TextField
@@ -150,7 +150,7 @@ export default function Sales() {
                             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
                                 2. Dados do Produto
                             </Typography>
-                            
+
                             <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
                                 <div className="col-span-12 md:col-span-4">
                                     <TextField
@@ -209,7 +209,7 @@ export default function Sales() {
                                     focused
                                 />
                                 <TextField
-                                    fullWidth 
+                                    fullWidth
                                     label="Valor de Entrada (R$)"
                                     value={valorEntrada}
                                     onChange={e => setValorEntrada(Number(e.target.value))}
@@ -250,7 +250,7 @@ export default function Sales() {
                             </Typography>
 
                             <Divider sx={{ mb: 2 }} />
-                            
+
                             <Typography variant="subtitle2" color="text.secondary">Saldo Devedor:</Typography>
                             <Typography variant="h4" color="error.main" sx={{ fontWeight: 'bold' }}>
                                 R$ {(valorTotal - valorEntrada).toFixed(2)}

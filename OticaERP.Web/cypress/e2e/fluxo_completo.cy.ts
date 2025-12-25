@@ -1,10 +1,10 @@
 describe('Fluxo Completo do Sistema OticaERP', () => {
-  
+
   // --- DADOS DE TESTE ---
   const LOGIN = { user: 'admin', pass: '123' };
-  
-  const CLIENTE = { 
-    nome: 'Wilker Martind', 
+
+  const CLIENTE = {
+    nome: 'Wilker Martind',
     cpf: '10097016659',
     nascimento: '1990-01-01',
     telefone: '11999999999',
@@ -13,17 +13,18 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     bairro: 'Jd Guairaca',
     cidade: 'São Paulo'
   };
-  
-  const PRODUTO = { 
-    nome: 'Arm Masc 123456 C5', 
+
+  const PRODUTO = {
+    nome: 'Arm Masc 123456 C5',
     codigo: '0101',
-    categoria: 'Armação', 
-    preco: '100', 
-    estoque: '100' 
+    categoria: 'Armação',
+    precoCusto: '50',
+    precoVenda: '150',
+    estoque: '100'
   };
 
   it('Deve percorrer todo o ciclo: Login -> Cliente -> Produto -> Venda -> Agenda -> Receita', () => {
-    
+
     // Intercepts
     cy.intercept('POST', '**/api/clients').as('createClient');
     cy.intercept('GET', '**/api/clients/cpf/**').as('searchClient');
@@ -32,7 +33,7 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     // ============================================================
     // 1. LOGIN
     // ============================================================
-    cy.visit('http://127.0.0.1:5173'); 
+    cy.visit('http://127.0.0.1:5173');
 
     cy.get('input[type="text"]').clear().type(LOGIN.user);
     cy.get('input[type="password"]').clear().type(LOGIN.pass);
@@ -40,10 +41,10 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     cy.on('window:alert', () => true);
 
     cy.contains('Criar conta de teste', { matchCase: false }).click();
-    cy.wait(1000); 
+    cy.wait(1000);
 
     cy.get('button[type="submit"]').click();
-    cy.wait('@loginReq'); 
+    cy.wait('@loginReq');
 
     cy.contains('span', 'Clientes', { timeout: 15000 }).should('be.visible');
 
@@ -58,15 +59,15 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     cy.contains('label', 'CPF').parent().find('input').type(CLIENTE.cpf);
     cy.contains('label', 'Nascimento').parent().find('input').type(CLIENTE.nascimento);
     cy.contains('label', 'Telefone').parent().find('input').type(CLIENTE.telefone);
-    
+
     cy.contains('label', 'CEP').parent().find('input').type(CLIENTE.cep);
     cy.contains('label', 'Rua').parent().find('input').type(CLIENTE.rua);
     cy.contains('label', 'Bairro').parent().find('input').type(CLIENTE.bairro);
     cy.contains('label', 'Cidade').parent().find('input').type(CLIENTE.cidade);
 
-    cy.get('button[type="submit"]').click(); 
+    cy.get('button[type="submit"]').click();
     cy.wait('@createClient');
-    cy.wait(1000); 
+    cy.wait(1000);
 
     // ============================================================
     // 3. CADASTRAR PRODUTO
@@ -81,7 +82,8 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     cy.contains('label', 'Categoria').parent().click();
     cy.get('ul[role="listbox"]').contains('li', PRODUTO.categoria).click();
 
-    cy.contains('label', 'Preço').parent().find('input').type(PRODUTO.preco);
+    cy.contains('label', 'Preço de Custo').parent().find('input').type(PRODUTO.precoCusto);
+    cy.contains('label', 'Preço de Venda').parent().find('input').type(PRODUTO.precoVenda);
     cy.contains('label', 'Qtd. Estoque').parent().find('input').type(PRODUTO.estoque);
 
     cy.get('button[type="submit"]').click();
@@ -93,8 +95,8 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     cy.log('--- Realizando Venda ---');
     cy.contains('span', 'Vendas').click();
 
-    cy.contains('label', 'CPF do Cliente').parent().find('input').type(CLIENTE.cpf).blur(); 
-    cy.wait('@searchClient'); 
+    cy.contains('label', 'CPF do Cliente').parent().find('input').type(CLIENTE.cpf).blur();
+    cy.wait('@searchClient');
 
     cy.contains('label', 'Cód. Produto').parent().find('input').type(PRODUTO.codigo).blur();
     cy.wait(2000);
@@ -113,13 +115,13 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
 
     cy.contains('label', 'CPF do Cliente').parent().find('input').type(CLIENTE.cpf).blur();
     cy.wait('@searchClient');
-    
+
     cy.contains('label', 'Cliente Identificado').parent().find('input')
       .should('have.value', CLIENTE.nome);
 
     cy.contains('label', 'Data').parent().find('input')
       .click().type('2026-01-11', { force: true });
-      
+
     cy.contains('label', 'Hora').parent().find('input')
       .click().type('13:00', { force: true });
 
@@ -130,7 +132,7 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     cy.contains('button', 'Confirmar Agendamento')
       .should('be.visible')
       .click();
-      
+
     cy.wait(1000);
 
     // ============================================================
@@ -138,7 +140,7 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
     // ============================================================
     cy.log('--- Registrando Receita ---');
     cy.contains('span', 'Receitas').click();
-    
+
     cy.contains('label', 'Data do Exame', { timeout: 10000 }).should('be.visible');
 
     // Busca Cliente
@@ -174,7 +176,7 @@ describe('Fluxo Completo do Sistema OticaERP', () => {
 
     // Salvar
     cy.contains('button', 'SALVAR RECEITA').click();
-    
+
     cy.log('✨ Fluxo Completo Finalizado! ✨');
   });
 });
