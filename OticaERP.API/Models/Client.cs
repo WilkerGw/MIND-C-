@@ -14,8 +14,8 @@ namespace OticaERP.API.Models
         [Phone]
         public string? Phone { get; set; }
 
-        [EmailAddress]
-        public string? Email { get; set; }
+        // REMOVIDO: public string? Email { get; set; } 
+        // Como não vamos coletar email, removemos a propriedade para o EF Core não buscar a coluna.
 
         [StringLength(14)]
         public string Cpf { get; set; } = string.Empty;

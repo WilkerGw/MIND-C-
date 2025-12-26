@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using OticaERP.API.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models; // Necessário para configurar o Swagger Auth
 using System.Text;
 using DotNetEnv; 
 
@@ -74,21 +75,53 @@ builder.Services.AddAuthentication(x =>
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+// --- 4. CONFIGURAÇÃO DO SWAGGER COM CADEADO (Authorize) ---
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "OticaERP API", Version = "v1" });
+
+    // Define o esquema de segurança (Bearer Token)
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = @"Cabeçalho de autorização JWT usando o esquema Bearer. 
+                      Entre com 'Bearer' [espaço] e então seu token no campo de texto abaixo.
+                      Exemplo: 'Bearer 12345abcdef'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+            },
+            new List<string>()
+        }
+    });
+});
 
 var app = builder.Build();
 
-// --- INICIALIZAÇÃO DO BANCO DE DADOS (VERSÃO CORRIGIDA) ---
+// --- INICIALIZAÇÃO DO BANCO DE DADOS ---
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     try 
     {
         Console.WriteLine("[AGUARDE] Aplicando Migrations no Supabase...");
-        
-        // MUDANÇA FUNDAMENTAL: .Migrate() força a criação das tabelas
         db.Database.Migrate();
-        
         Console.WriteLine("[SUCESSO] Tabelas criadas/atualizadas com sucesso!");
     }
     catch (Exception ex)

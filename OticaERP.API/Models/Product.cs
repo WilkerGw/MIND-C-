@@ -11,11 +11,12 @@ namespace OticaERP.API.Models
         [StringLength(100)]
         public string Name { get; set; } = string.Empty;
 
-        public string? Description { get; set; }
+        // REMOVIDO: public string? Description { get; set; }
 
         public string ProductCode { get; set; } = string.Empty;
 
-        public int Category { get; set; } 
+        // MUDANÇA: Alterado de int para string para aceitar "Armação", "Lentes", etc.
+        public string Category { get; set; } = string.Empty; 
 
         [Range(0, double.MaxValue)]
         public decimal CostPrice { get; set; }
