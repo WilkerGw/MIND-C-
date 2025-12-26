@@ -1,315 +1,352 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-    Box,
-    Button,
-    TextField,
-    Paper,
-    Typography,
-    Alert,
-    Divider,
-    Card,
-    CardContent
+    Box, Button, TextField, Paper, Typography, Grid, Table, TableBody,
+    TableCell, TableContainer, TableHead, TableRow, IconButton, Divider
 } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import api from '../services/api';
 
+interface Product {
+    id: number;
+    name: string;
+    productCode: string;
+    sellingPrice: number;
+    stockQuantity: number;
+}
+
+interface CartItem {
+    productCode: string;
+    productName: string;
+    quantity: number;
+    unitPrice: number;
+    subTotal: number;
+}
+
+interface SaleHistory {
+    id: number;
+    clientName: string;
+    productsSummary: string;
+    totalValue: number;
+    saleDate: string;
+}
+
 export default function Sales() {
-    const [dataVenda, setDataVenda] = useState(new Date().toISOString().split('T')[0]);
-    const [numOSManual, setNumOSManual] = useState(''); // Estado para o número da OS
-
+    const [salesHistory, setSalesHistory] = useState<SaleHistory[]>([]);
+    
+    // Dados da Venda
     const [cpfCliente, setCpfCliente] = useState('');
-    const [clienteNome, setClienteNome] = useState('');
+    const [clientName, setClientName] = useState(''); 
+    const [entryValue, setEntryValue] = useState<string>('');
+    const [customOsNumber, setCustomOsNumber] = useState<string>('');
+    const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
 
-    const [codProduto, setCodProduto] = useState('');
-    const [produtoNome, setProdutoNome] = useState('');
-    const [produtoPreco, setProdutoPreco] = useState(0);
+    // Produto e Carrinho
+    const [currentProductCode, setCurrentProductCode] = useState('');
+    const [currentProductName, setCurrentProductName] = useState(''); 
+    const [currentQuantity, setCurrentQuantity] = useState<number>(1);
+    const [cart, setCart] = useState<CartItem[]>([]);
 
-    const [valorTotal, setValorTotal] = useState(0);
-    const [quantidade, setQuantidade] = useState(1);
-    const [valorEntrada, setValorEntrada] = useState(0);
+    useEffect(() => {
+        loadSales();
+    }, []);
 
-    const [mensagem, setMensagem] = useState<{ tipo: 'success' | 'error', texto: string } | null>(null);
+    async function loadSales() {
+        try {
+            const response = await api.get('/sales');
+            setSalesHistory(response.data);
+        } catch (error) {
+            console.error("Erro ao carregar vendas", error);
+        }
+    }
 
-    async function buscarCliente() {
+    // --- BUSCAR CLIENTE ---
+    async function handleSearchClient() {
         if (!cpfCliente) return;
         try {
-            const response = await api.get(`/clients/cpf/${cpfCliente}`);
-            setClienteNome(response.data.fullName);
-            setMensagem(null);
+            const response = await api.get(`/clients/by-cpf/${cpfCliente}`);
+            setClientName(response.data.fullName);
         } catch (error) {
-            setClienteNome('');
-            setMensagem({ tipo: 'error', texto: 'Cliente não encontrado. Verifique o CPF.' });
+            setClientName(''); 
+            alert("Cliente não encontrado. Verifique o CPF.");
         }
     }
 
-    async function buscarProduto() {
-        if (!codProduto) return;
+    // --- BUSCAR PRODUTO ---
+    async function handleSearchProduct() {
+        if (!currentProductCode) return;
         try {
-            const response = await api.get(`/products/${codProduto}`);
-            const prod = response.data;
-            setProdutoNome(prod.name);
-            setProdutoPreco(prod.sellingPrice);
-            setValorTotal(prod.sellingPrice * quantidade);
-            setMensagem(null);
+            const response = await api.get(`/products/by-code/${currentProductCode}`);
+            setCurrentProductName(response.data.name);
+        } catch (error) {
+            setCurrentProductName('');
+            alert("Produto não encontrado com este código.");
+        }
+    }
 
-            if (prod.stockQuantity <= 0) {
-                setMensagem({ tipo: 'error', texto: 'ATENÇÃO: Produto sem estoque!' });
+    async function handleAddItem() {
+        if (!currentProductCode) {
+            alert("Digite o código do produto.");
+            return;
+        }
+        if (currentQuantity <= 0) {
+            alert("Quantidade deve ser maior que zero.");
+            return;
+        }
+
+        try {
+            const response = await api.get(`/products/by-code/${currentProductCode}`);
+            const product: Product = response.data;
+
+            if (product.stockQuantity < currentQuantity) {
+                alert(`Estoque insuficiente. Disponível: ${product.stockQuantity}`);
+                return;
             }
-        } catch (error) {
-            setProdutoNome('');
-            setValorTotal(0);
-            setMensagem({ tipo: 'error', texto: 'Produto não encontrado.' });
-        }
-    }
 
-    async function handleFinalizarVenda(e: React.FormEvent) {
-        e.preventDefault();
-
-        if (!clienteNome || !produtoNome) {
-            setMensagem({ tipo: 'error', texto: 'Preencha um cliente e um produto válidos.' });
-            return;
-        }
-
-        if (!numOSManual) {
-            setMensagem({ tipo: 'error', texto: 'O Número da Ordem de Serviço é obrigatório.' });
-            return;
-        }
-
-        try {
-            const payload = {
-                cpfCliente: cpfCliente,
-                codigoProduto: codProduto,
-                valorTotal: Number(valorTotal),
-                quantity: Number(quantidade),
-                entryValue: Number(valorEntrada),
-                saleDate: new Date(dataVenda).toISOString(),
-                customOsNumber: Number(numOSManual) // Envia o número manual
+            const newItem: CartItem = {
+                productCode: product.productCode,
+                productName: product.name,
+                quantity: currentQuantity,
+                unitPrice: product.sellingPrice,
+                subTotal: product.sellingPrice * currentQuantity
             };
 
-            const response = await api.post('/sales', payload);
+            setCart([...cart, newItem]);
+            
+            // Limpar campos
+            setCurrentProductCode('');
+            setCurrentProductName(''); 
+            setCurrentQuantity(1);
 
-            // Usa o número retornado para exibir
-            const osDisplay = response.data.displayOrderId;
+        } catch (error) {
+            console.error("Erro ao buscar produto", error);
+            alert("Erro ao adicionar produto. Verifique o código.");
+        }
+    }
 
-            setMensagem({
-                tipo: 'success',
-                texto: `Venda realizada! OS #${osDisplay} registrada com sucesso.`
-            });
+    function handleRemoveItem(index: number) {
+        const newCart = [...cart];
+        newCart.splice(index, 1);
+        setCart(newCart);
+    }
 
-            // Limpar formulário
+    // --- CÁLCULOS FINANCEIROS ---
+    const totalCartValue = cart.reduce((acc, item) => acc + item.subTotal, 0);
+    const entryNumber = parseFloat(entryValue) || 0; // Converte string para número, ou 0 se vazio
+    const remainingBalance = totalCartValue - entryNumber; // Saldo Devedor
+
+    async function handleFinalizeSale() {
+        if (cart.length === 0) {
+            alert("O carrinho está vazio.");
+            return;
+        }
+        if (!cpfCliente || !customOsNumber) {
+            alert("Preencha o CPF do cliente e o Número da OS.");
+            return;
+        }
+        if (!clientName) {
+            alert("Pesquise um cliente válido pelo CPF antes de finalizar.");
+            return;
+        }
+
+        const payload = {
+            cpfCliente: cpfCliente,
+            items: cart.map(item => ({
+                productCode: item.productCode,
+                quantity: item.quantity
+            })),
+            entryValue: entryNumber,
+            customOsNumber: parseInt(customOsNumber),
+            saleDate: saleDate ? new Date(saleDate) : new Date()
+        };
+
+        try {
+            await api.post('/sales', payload);
+            alert('Venda realizada com sucesso!');
+            
+            setCart([]);
             setCpfCliente('');
-            setClienteNome('');
-            setCodProduto('');
-            setProdutoNome('');
-            setValorTotal(0);
-            setProdutoPreco(0);
-            setQuantidade(1);
-            setValorEntrada(0);
-            setNumOSManual('');
-            setDataVenda(new Date().toISOString().split('T')[0]);
-
+            setClientName(''); 
+            setEntryValue('');
+            setCustomOsNumber('');
+            loadSales();
         } catch (error: any) {
-            console.error(error);
-            setMensagem({
-                tipo: 'error',
-                texto: error.response?.data?.message || error.response?.data || 'Erro ao realizar venda.'
-            });
+            console.error("Erro na venda:", error);
+            const msg = error.response?.data?.message || error.response?.data || "Erro desconhecido";
+            alert("Falha na venda: " + (typeof msg === 'object' ? JSON.stringify(msg) : msg));
         }
     }
 
     return (
         <Box>
-            <Typography variant="h4" gutterBottom className="mb-6">
-                Nova Venda
-            </Typography>
+            <Typography variant="h4" gutterBottom>Nova Venda (PDV)</Typography>
 
-            {mensagem && (
-                <Alert severity={mensagem.tipo} sx={{ mb: 2 }}>
-                    {mensagem.texto}
-                </Alert>
-            )}
+            <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+                <Grid container spacing={2}>
+                    {/* Cabeçalho da Venda */}
+                    <Grid item xs={12} md={3}>
+                        <TextField 
+                            fullWidth 
+                            label="CPF do Cliente" 
+                            required
+                            value={cpfCliente} 
+                            onChange={e => setCpfCliente(e.target.value)}
+                            onBlur={handleSearchClient} 
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={5}>
+                        <TextField 
+                            fullWidth 
+                            label="Nome do Cliente" 
+                            value={clientName} 
+                            disabled 
+                            variant="filled" 
+                        />
+                    </Grid>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                    <Grid item xs={12} md={2}>
+                        <TextField fullWidth label="Nº Manual da OS" required type="number"
+                            value={customOsNumber} onChange={e => setCustomOsNumber(e.target.value)} />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                        <TextField fullWidth type="date" label="Data" InputLabelProps={{ shrink: true }}
+                            value={saleDate} onChange={e => setSaleDate(e.target.value)} />
+                    </Grid>
 
-                {/* Lado Esquerdo: Formulário */}
-                <div className="col-span-12 md:col-span-7">
-                    <Paper elevation={3} sx={{ p: 3 }}>
-                        <form onSubmit={handleFinalizarVenda}>
-                            
-                            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                                1. Dados Gerais
-                            </Typography>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <TextField
-                                    fullWidth
-                                    label="Data da Venda"
-                                    type="date"
-                                    value={dataVenda}
-                                    onChange={e => setDataVenda(e.target.value)}
-                                    InputLabelProps={{ shrink: true }}
-                                    required
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="Número da OS"
-                                    type="number"
-                                    value={numOSManual}
-                                    onChange={e => setNumOSManual(e.target.value)}
-                                    placeholder="Ex: 1050"
-                                    required // Campo Obrigatório
-                                    error={!numOSManual}
-                                    helperText="Digite o número da OS do talão"
-                                />
-                            </div>
+                    <Grid item xs={12}>
+                        <Divider sx={{ my: 2 }}><Typography variant="caption">ADICIONAR PRODUTOS</Typography></Divider>
+                    </Grid>
 
-                            <Divider sx={{ mb: 3 }} />
+                    {/* Adicionar Produto */}
+                    <Grid item xs={12} md={3}>
+                        <TextField 
+                            fullWidth 
+                            label="Código do Produto" 
+                            value={currentProductCode} 
+                            onChange={e => setCurrentProductCode(e.target.value)}
+                            onBlur={handleSearchProduct}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={5}>
+                        <TextField 
+                            fullWidth 
+                            label="Nome do Produto" 
+                            value={currentProductName} 
+                            disabled 
+                            variant="filled" 
+                        />
+                    </Grid>
 
-                            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                                2. Dados do Cliente
-                            </Typography>
+                    <Grid item xs={12} md={2}>
+                        <TextField fullWidth label="Qtd" type="number"
+                            value={currentQuantity} onChange={e => setCurrentQuantity(parseInt(e.target.value))} />
+                    </Grid>
+                    <Grid item xs={12} md={2}>
+                        <Button variant="outlined" fullWidth sx={{ height: '56px' }} onClick={handleAddItem}>
+                            Adicionar
+                        </Button>
+                    </Grid>
+                    
+                    {/* Resumo do Carrinho */}
+                    <Grid item xs={12}>
+                        <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell>Produto</TableCell>
+                                        <TableCell>Qtd</TableCell>
+                                        <TableCell>Unitário</TableCell>
+                                        <TableCell>Subtotal</TableCell>
+                                        <TableCell>Ação</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {cart.map((item, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell>{item.productName}</TableCell>
+                                            <TableCell>{item.quantity}</TableCell>
+                                            <TableCell>R$ {item.unitPrice.toFixed(2)}</TableCell>
+                                            <TableCell>R$ {item.subTotal.toFixed(2)}</TableCell>
+                                            <TableCell>
+                                                <IconButton color="error" size="small" onClick={() => handleRemoveItem(index)}>
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {cart.length === 0 && <TableRow><TableCell colSpan={5} align="center">Carrinho vazio</TableCell></TableRow>}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
 
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                                <div className="col-span-12 md:col-span-4">
-                                    <TextField
-                                        fullWidth label="CPF do Cliente"
-                                        value={cpfCliente}
-                                        onChange={e => setCpfCliente(e.target.value)}
-                                        onBlur={buscarCliente}
-                                        required
+                        {/* ÁREA DE TOTAIS E FINANCEIRO */}
+                        <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                            <Grid container spacing={2} alignItems="center" justifyContent="flex-end">
+                                {/* Total Geral */}
+                                <Grid item>
+                                    <Typography variant="h6">
+                                        Total: <strong>{totalCartValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                                    </Typography>
+                                </Grid>
+
+                                {/* Input de Entrada */}
+                                <Grid item xs={12} md={2}>
+                                     <TextField 
+                                        fullWidth 
+                                        label="Valor Entrada (R$)" 
+                                        type="number"
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{ bgcolor: 'white' }}
+                                        value={entryValue} 
+                                        onChange={e => setEntryValue(e.target.value)} 
                                     />
-                                </div>
-                                <div className="col-span-12 md:col-span-8">
-                                    <TextField
-                                        fullWidth label="Nome do Cliente"
-                                        value={clienteNome}
-                                        disabled variant="filled"
-                                    />
-                                </div>
-                            </div>
+                                </Grid>
 
-                            <Divider sx={{ my: 3 }} />
+                                {/* Saldo Devedor (Calculado) */}
+                                <Grid item xs={12} md={3}>
+                                    <Typography variant="h6" color="error" sx={{ fontWeight: 'bold' }}>
+                                        Falta Pagar: {remainingBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </Typography>
+                                </Grid>
+                            </Grid>
+                        </Box>
+                    </Grid>
 
-                            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                                3. Dados do Produto
-                            </Typography>
+                    {/* Botão Finalizar */}
+                    <Grid item xs={12}>
+                        <Button variant="contained" color="success" fullWidth size="large" onClick={handleFinalizeSale}>
+                            FINALIZAR VENDA
+                        </Button>
+                    </Grid>
+                </Grid>
+            </Paper>
 
-                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mb-4">
-                                <div className="col-span-12 md:col-span-4">
-                                    <TextField
-                                        fullWidth label="Cód. Produto"
-                                        value={codProduto}
-                                        onChange={e => setCodProduto(e.target.value)}
-                                        onBlur={buscarProduto}
-                                        required
-                                    />
-                                </div>
-                                <div className="col-span-12 md:col-span-8">
-                                    <TextField
-                                        fullWidth label="Produto Identificado"
-                                        value={produtoNome}
-                                        disabled variant="filled"
-                                    />
-                                </div>
-                            </div>
-
-                            <Divider sx={{ my: 3 }} />
-
-                            <Typography variant="h6" sx={{ mb: 2, color: 'green' }}>
-                                4. Fechamento e Pagamento
-                            </Typography>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                <TextField
-                                    fullWidth label="Preço Unitário (R$)"
-                                    value={produtoPreco}
-                                    disabled type="number"
-                                />
-                                <TextField
-                                    fullWidth label="Quantidade"
-                                    value={quantidade}
-                                    onChange={e => {
-                                        const qty = Number(e.target.value);
-                                        setQuantidade(qty);
-                                        setValorTotal(qty * produtoPreco);
-                                    }}
-                                    type="number"
-                                    required
-                                    slotProps={{ htmlInput: { min: 1 } }}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <TextField
-                                    fullWidth label="Valor Total (R$)"
-                                    value={valorTotal}
-                                    onChange={e => setValorTotal(Number(e.target.value))}
-                                    type="number"
-                                    required
-                                    color="secondary"
-                                    focused
-                                />
-                                <TextField
-                                    fullWidth
-                                    label="Valor de Entrada (R$)"
-                                    value={valorEntrada}
-                                    onChange={e => setValorEntrada(Number(e.target.value))}
-                                    type="number"
-                                    color="success"
-                                    focused
-                                    helperText={`Resta a pagar: R$ ${(valorTotal - valorEntrada).toFixed(2)}`}
-                                />
-                            </div>
-
-                            <Box sx={{ mt: 4 }}>
-                                <Button type="submit" variant="contained" color="success" size="large" fullWidth>
-                                    FINALIZAR VENDA
-                                </Button>
-                            </Box>
-                        </form>
-                    </Paper>
-                </div>
-
-                {/* Lado Direito: Resumo */}
-                <div className="col-span-12 md:col-span-5">
-                    <Card sx={{ bgcolor: '#f5f5f5', height: '100%' }}>
-                        <CardContent>
-                            <Typography variant="h6" gutterBottom>Resumo Financeiro</Typography>
-                            <Divider sx={{ mb: 2 }} />
-                            
-                            <Typography variant="subtitle2" color="text.secondary">Data da Venda:</Typography>
-                            <Typography variant="body1" sx={{ mb: 2, fontWeight: 'bold' }}>
-                                {dataVenda.split('-').reverse().join('/')}
-                            </Typography>
-
-                            {/* EXIBE A OS MANUAL NO RESUMO */}
-                            <Typography variant="subtitle2" color="text.secondary">Nº OS (Manual):</Typography>
-                            <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: 'blue' }}>
-                                {numOSManual ? `#${numOSManual}` : '---'}
-                            </Typography>
-
-                            <Typography variant="subtitle2" color="text.secondary">Cliente:</Typography>
-                            <Typography variant="body1" sx={{ mb: 2, fontWeight: 'bold' }}>{clienteNome || '---'}</Typography>
-
-                            <Typography variant="subtitle2" color="text.secondary">Total da Venda:</Typography>
-                            <Typography variant="h5" color="text.primary" sx={{ mb: 2, fontWeight: 'bold' }}>
-                                R$ {Number(valorTotal).toFixed(2)}
-                            </Typography>
-
-                            <Typography variant="subtitle2" color="text.secondary">Entrada:</Typography>
-                            <Typography variant="h6" color="success.main" sx={{ mb: 2, fontWeight: 'bold' }}>
-                                - R$ {Number(valorEntrada).toFixed(2)}
-                            </Typography>
-
-                            <Divider sx={{ mb: 2 }} />
-
-                            <Typography variant="subtitle2" color="text.secondary">Saldo Devedor:</Typography>
-                            <Typography variant="h4" color="error.main" sx={{ fontWeight: 'bold' }}>
-                                R$ {(valorTotal - valorEntrada).toFixed(2)}
-                            </Typography>
-                        </CardContent>
-                    </Card>
-                </div>
-            </div>
+            {/* Histórico */}
+            <Typography variant="h5" gutterBottom>Histórico de Vendas</Typography>
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>ID</TableCell>
+                            <TableCell>Cliente</TableCell>
+                            <TableCell>Resumo</TableCell>
+                            <TableCell>Data</TableCell>
+                            <TableCell>Total</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {salesHistory.map((sale) => (
+                            <TableRow key={sale.id}>
+                                <TableCell>{sale.id}</TableCell>
+                                <TableCell>{sale.clientName}</TableCell>
+                                <TableCell>{sale.productsSummary}</TableCell>
+                                <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
+                                <TableCell>{sale.totalValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
         </Box>
     );
 }
