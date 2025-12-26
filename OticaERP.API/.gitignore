@@ -138,3 +138,6 @@ ConEmu.xml
 # Dotnet
 bin/
 obj/
+
+.env
+.env.local
