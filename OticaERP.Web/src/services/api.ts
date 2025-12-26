@@ -1,12 +1,11 @@
 import axios from 'axios';
 
 const api = axios.create({
-    // ATENÇÃO: Confirme se o seu backend está mesmo na porta 5175
-    // Olhe no terminal do backend: "Now listening on: http://localhost:xxxx"
+    // Aponta direto para o backend rodando na sua máquina
     baseURL: 'http://localhost:5200/api'
 });
 
-// Toda vez que fizermos uma requisição, vamos ver se tem um Token salvo
+// Interceptador para adicionar o Token JWT em todas as requisições
 api.interceptors.request.use(config => {
     const token = localStorage.getItem('otica_token');
     if (token) {
