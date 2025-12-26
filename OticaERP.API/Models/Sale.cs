@@ -13,15 +13,11 @@ namespace OticaERP.API.Models
         public DateTime SaleDate { get; set; } = DateTime.UtcNow;
 
         public decimal TotalValue { get; set; }
-        
-        // --- CAMPO RESTAURADO ---
-        public decimal EntryValue { get; set; } // Valor de Entrada
-        // ------------------------
+        public decimal EntryValue { get; set; }
 
-        public int Quantity { get; set; }
-
-        public int ProductId { get; set; }
-        public Product? Product { get; set; }
+        // REMOVIDO: Quantity e ProductId direto na venda
+        // ADICIONADO: Lista de itens
+        public List<SaleItem> Items { get; set; } = new List<SaleItem>();
 
         public int? ServiceOrderId { get; set; }
     }

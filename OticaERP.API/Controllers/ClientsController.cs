@@ -16,95 +16,46 @@ namespace OticaERP.API.Controllers
             _context = context;
         }
 
+        // GET: api/Clients
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Client>>> GetClients()
         {
-            return await _context.Clients.ToListAsync();
+            return await _context.Clients.OrderByDescending(c => c.Id).ToListAsync();
         }
 
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Client>> GetClient(int id)
-        {
-            var client = await _context.Clients.FindAsync(id);
-
-            if (client == null)
-            {
-                return NotFound();
-            }
-
-            return client;
-        }
-
-        [HttpGet("cpf/{cpf}")]
+        // --- NOVO MÉTODO: BUSCAR POR CPF ---
+        [HttpGet("by-cpf/{cpf}")]
         public async Task<ActionResult<Client>> GetClientByCpf(string cpf)
         {
+            // Remove pontuação se vier
+            var cleanCpf = cpf.Replace(".", "").Replace("-", "");
+            
+            // Busca exata (considerando que no banco está salvo limpo ou formatado, aqui buscamos 'Contains' ou exato.
+            // O ideal é exato. Vamos assumir que você digita igual ao cadastro)
             var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == cpf);
 
             if (client == null)
             {
-                return NotFound();
+                return NotFound(new { message = "Cliente não encontrado." });
             }
 
-            return client;
+            return Ok(client);
         }
+        // -----------------------------------
 
+        // POST: api/Clients
         [HttpPost]
         public async Task<ActionResult<Client>> PostClient(Client client)
         {
-            // Validação básica
-            if (string.IsNullOrEmpty(client.FullName))
+            if (await _context.Clients.AnyAsync(c => c.Cpf == client.Cpf))
             {
-                return BadRequest("O nome do cliente é obrigatório.");
+                return BadRequest("Já existe um cliente cadastrado com este CPF.");
             }
 
             _context.Clients.Add(client);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetClient", new { id = client.Id }, client);
-        }
-
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutClient(int id, Client client)
-        {
-            if (id != client.Id)
-            {
-                return BadRequest();
-            }
-
-            _context.Entry(client).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!_context.Clients.Any(e => e.Id == id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteClient(int id)
-        {
-            var client = await _context.Clients.FindAsync(id);
-            if (client == null)
-            {
-                return NotFound();
-            }
-
-            _context.Clients.Remove(client);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return CreatedAtAction(nameof(GetClients), new { id = client.Id }, client);
         }
     }
 }

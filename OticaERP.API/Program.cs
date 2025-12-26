@@ -47,14 +47,17 @@ var app = builder.Build();
 
 // --- ÁREA DE RESET DO BANCO DE DADOS (USAR APENAS EM DESENVOLVIMENTO) ---
 // Isto vai apagar e recriar o banco sempre que o servidor reiniciar.
-// Remove isto quando o sistema estiver estável!
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // Apaga o banco antigo se existir (resolve o erro de "Table already exists")
+    
+    // 1. Apaga o banco antigo (limpa tudo)
     db.Database.EnsureDeleted(); 
-    // Cria o banco novo limpo (sem precisar rodar 'dotnet ef database update')
-    db.Database.Migrate();
+    
+    // 2. Cria o banco NOVO baseado exatamente nas suas Classes (Models) atuais.
+    // ATENÇÃO: Mudamos de .Migrate() para .EnsureCreated() para evitar conflito
+    // com arquivos de migração antigos que pediam ProductId na Venda.
+    db.Database.EnsureCreated();
 }
 // -------------------------------------------------------------------------
 

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using OticaERP.API.Data;
 using OticaERP.API.DTOs;
 using OticaERP.API.Models;
+using System.Text;
 
 namespace OticaERP.API.Controllers
 {
@@ -21,108 +22,140 @@ namespace OticaERP.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<SaleDto>>> GetSales()
         {
-            return await _context.Sales
+            var sales = await _context.Sales
                 .Include(s => s.Client)
-                .Include(s => s.Product)
+                .Include(s => s.Items)
+                .ThenInclude(i => i.Product)
                 .OrderByDescending(s => s.SaleDate)
-                .Select(s => new SaleDto
-                {
-                    Id = s.Id,
-                    ClientName = s.Client != null ? s.Client.FullName : "Desconhecido",
-                    ProductName = s.Product != null ? s.Product.Name : "Desconhecido",
-                    Quantity = s.Quantity,
-                    TotalValue = s.TotalValue,
-                    EntryValue = s.EntryValue, 
-                    SaleDate = s.SaleDate
-                })
                 .ToListAsync();
+
+            // Transformar em DTO
+            var dtos = sales.Select(s => new SaleDto
+            {
+                Id = s.Id,
+                ClientName = s.Client != null ? s.Client.FullName : "Desconhecido",
+                // Cria um resumo: "2x Lente Multifocal, 1x Armação RayBan"
+                ProductsSummary = string.Join(", ", s.Items.Select(i => $"{i.Quantity}x {i.Product?.Name}")),
+                TotalValue = s.TotalValue,
+                EntryValue = s.EntryValue,
+                SaleDate = s.SaleDate
+            }).ToList();
+
+            return Ok(dtos);
         }
 
         // POST: api/Sales
         [HttpPost]
         public async Task<IActionResult> CreateSale(CreateSaleDto dto)
         {
-            // --- VALIDAÇÃO DE NÚMERO MANUAL OBRIGATÓRIO ---
             if (!dto.CustomOsNumber.HasValue || dto.CustomOsNumber.Value <= 0)
             {
                 return BadRequest("É obrigatório informar o Número da Ordem de Serviço manualmente.");
             }
 
-            // Verificar duplicidade
+            if (dto.Items == null || !dto.Items.Any())
+            {
+                return BadRequest("O carrinho de compras está vazio.");
+            }
+
+            // Verificar duplicidade da OS
             bool exists = await _context.ServiceOrders.AnyAsync(so => so.ManualOrderNumber == dto.CustomOsNumber.Value);
             if (exists)
             {
                 return BadRequest($"Já existe uma Ordem de Serviço com o número {dto.CustomOsNumber.Value}.");
             }
-            // ------------------------------------------------
 
-            // 1. Validar Produto
-            var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode == dto.CodigoProduto);
-            if (product == null) return NotFound("Produto não encontrado.");
-
-            if (product.StockQuantity < dto.Quantity) 
-                return BadRequest($"Estoque insuficiente. Disponível: {product.StockQuantity}");
-
-            // 2. Validar Cliente
+            // Validar Cliente
             var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == dto.CpfCliente);
             if (client == null) return NotFound("Cliente não encontrado.");
 
-            // 3. Definir Data
-            DateTime finalSaleDate = dto.SaleDate.HasValue 
-                ? dto.SaleDate.Value.ToUniversalTime() 
+            DateTime finalSaleDate = dto.SaleDate.HasValue
+                ? dto.SaleDate.Value.ToUniversalTime()
                 : DateTime.UtcNow;
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                // 1. Criar a Venda (Cabeçalho)
                 var sale = new Sale
                 {
                     ClientId = client.Id,
-                    ProductId = product.Id,
-                    Quantity = dto.Quantity,
-                    TotalValue = dto.ValorTotal,
                     EntryValue = dto.EntryValue,
-                    SaleDate = finalSaleDate
+                    SaleDate = finalSaleDate,
+                    Items = new List<SaleItem>()
                 };
 
-                // Atualizar Estoque
-                product.StockQuantity -= dto.Quantity;
+                decimal calculatedTotal = 0;
+                var descriptionBuilder = new StringBuilder();
+                descriptionBuilder.AppendLine("Itens da Venda:");
+
+                // 2. Processar cada item do carrinho
+                foreach (var itemDto in dto.Items)
+                {
+                    var product = await _context.Products.FirstOrDefaultAsync(p => p.ProductCode == itemDto.ProductCode);
+                    if (product == null) 
+                        throw new Exception($"Produto com código {itemDto.ProductCode} não encontrado.");
+
+                    if (product.StockQuantity < itemDto.Quantity)
+                        throw new Exception($"Estoque insuficiente para {product.Name}. Disponível: {product.StockQuantity}");
+
+                    // Abater estoque
+                    product.StockQuantity -= itemDto.Quantity;
+
+                    // Criar Item da Venda
+                    var saleItem = new SaleItem
+                    {
+                        Product = product,
+                        Quantity = itemDto.Quantity,
+                        UnitPrice = product.SellingPrice,
+                        SubTotal = product.SellingPrice * itemDto.Quantity
+                    };
+
+                    sale.Items.Add(saleItem);
+                    calculatedTotal += saleItem.SubTotal;
+
+                    // Adicionar à descrição da OS
+                    descriptionBuilder.AppendLine($"- {itemDto.Quantity}x {product.Name} ({product.SellingPrice:C} un)");
+                }
+
+                sale.TotalValue = calculatedTotal;
 
                 _context.Sales.Add(sale);
                 await _context.SaveChangesAsync();
 
-                // 4. Gerar OS
-                decimal remainingValue = dto.ValorTotal - dto.EntryValue;
+                // 3. Gerar OS Única para a Venda
+                decimal remainingValue = sale.TotalValue - sale.EntryValue;
+                descriptionBuilder.AppendLine($"Total: {sale.TotalValue:C}. Entrada: {sale.EntryValue:C}.");
 
                 var serviceOrder = new ServiceOrder
                 {
-                    ServiceType = ServiceOrderType.Venda, 
-                    Status = "Aguardando Coleta", 
-                    Description = $"Venda: {dto.Quantity}x {product.Name}. Total: {dto.ValorTotal:C}. Entrada: {dto.EntryValue:C}.",
+                    ServiceType = ServiceOrderType.Venda,
+                    Status = "Aguardando Coleta",
+                    Description = descriptionBuilder.ToString(),
                     Price = remainingValue,
-                    ProductId = product.Id,
                     ClientId = client.Id,
                     SaleId = sale.Id,
                     CreatedAt = finalSaleDate,
-                    DeliveryDate = finalSaleDate,
-                    
-                    // Grava o número manual OBRIGATÓRIO
-                    ManualOrderNumber = dto.CustomOsNumber.Value 
+                    DeliveryDate = finalSaleDate.AddDays(7), // Previsão padrão de 7 dias
+                    ManualOrderNumber = dto.CustomOsNumber.Value,
+                    ProductId = null // Não vinculamos a um único produto, pois são vários
                 };
 
                 _context.ServiceOrders.Add(serviceOrder);
                 await _context.SaveChangesAsync();
 
+                // Atualizar Venda com ID da OS
                 sale.ServiceOrderId = serviceOrder.Id;
                 await _context.SaveChangesAsync();
 
                 await transaction.CommitAsync();
 
-                return Ok(new { 
-                    Message = "Venda realizada com sucesso!", 
-                    SaleId = sale.Id, 
+                return Ok(new
+                {
+                    Message = "Venda realizada com sucesso!",
+                    SaleId = sale.Id,
                     ServiceOrderId = serviceOrder.Id,
-                    DisplayOrderId = serviceOrder.ManualOrderNumber // Retorna o número manual
+                    TotalValue = sale.TotalValue
                 });
             }
             catch (Exception ex)
