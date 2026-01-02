@@ -11,7 +11,7 @@ interface Product {
     id?: number;
     productCode: string;
     name: string;
-    category: number; // Enum no C# é tratado como número por padrão (0, 1, 2...)
+    category: string;
     stockQuantity: number;
     costPrice: number;
     sellingPrice: number;
@@ -24,7 +24,7 @@ export default function Products() {
     const initialForm = {
         productCode: '',
         name: '',
-        category: 0, // 0 = Armacao (Valor padrão)
+        category: 'Armação',
         stockQuantity: 0,
         costPrice: 0,
         sellingPrice: 0
@@ -52,8 +52,8 @@ export default function Products() {
                 ...formData,
                 stockQuantity: Number(formData.stockQuantity),
                 costPrice: Number(formData.costPrice),
-                sellingPrice: Number(formData.sellingPrice),
-                category: Number(formData.category)
+                sellingPrice: Number(formData.sellingPrice)
+                // category já é string
             };
 
             await api.post('/products', payload);
@@ -145,11 +145,13 @@ export default function Products() {
                                 <InputLabel>Categoria</InputLabel>
                                 <Select label="Categoria"
                                     value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: Number(e.target.value) })}>
-                                    <MenuItem value={0}>Armação</MenuItem>
-                                    <MenuItem value={1}>Lente</MenuItem>
-                                    <MenuItem value={2}>Óculos Solar</MenuItem>
-                                    <MenuItem value={3}>Serviço</MenuItem>
+                                    onChange={(e) => setFormData({ ...formData, category: e.target.value as string })}>
+                                    <MenuItem value="Armação">Armação</MenuItem>
+                                    <MenuItem value="Lente">Lente</MenuItem>
+                                    <MenuItem value="Óculos Solar">Óculos Solar</MenuItem>
+                                    <MenuItem value="Serviço">Serviço</MenuItem>
+                                    <MenuItem value="Lente de Contato">Lente de Contato</MenuItem>
+                                    <MenuItem value="Acessório">Acessório</MenuItem>
                                 </Select>
                             </FormControl>
                         </Grid>
@@ -198,7 +200,7 @@ export default function Products() {
                                 <TableCell>{p.productCode}</TableCell>
                                 <TableCell>{p.name}</TableCell>
                                 <TableCell>
-                                    <Chip label={getCategoryName(p.category)} size="small" />
+                                    <Chip label={p.category} size="small" />
                                 </TableCell>
                                 <TableCell
                                     sx={{ color: p.stockQuantity < 5 ? 'red' : 'inherit', fontWeight: 'bold' }}>

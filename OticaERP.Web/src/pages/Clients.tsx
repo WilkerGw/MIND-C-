@@ -108,28 +108,28 @@ export default function Clients() {
             <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
                 <form onSubmit={handleSave}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField fullWidth label="Nome Completo" required
                                 value={formData.fullName}
                                 onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
                         </Grid>
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <TextField fullWidth label="CPF" required
                                 value={formData.cpf}
                                 onChange={e => setFormData({ ...formData, cpf: e.target.value })} />
                         </Grid>
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <TextField fullWidth label="Telefone"
                                 value={formData.phone}
                                 onChange={e => setFormData({ ...formData, phone: e.target.value })} />
                         </Grid>
 
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <TextField fullWidth type="date" label="Data Nascimento" InputLabelProps={{ shrink: true }}
                                 value={formData.dateOfBirth}
                                 onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })} />
                         </Grid>
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <FormControl fullWidth>
                                 <InputLabel>Gênero</InputLabel>
                                 <Select label="Gênero"
@@ -144,9 +144,9 @@ export default function Clients() {
                         </Grid>
 
                         {/* Endereço */}
-                        <Grid item xs={12} md={2}>
-                            <TextField 
-                                fullWidth 
+                        <Grid size={{ xs: 12, md: 2 }}>
+                            <TextField
+                                fullWidth
                                 label="CEP"
                                 value={formData.zipCode}
                                 onChange={e => setFormData({ ...formData, zipCode: e.target.value })}
@@ -154,23 +154,23 @@ export default function Clients() {
                                 helperText="Digite o CEP para buscar"
                             />
                         </Grid>
-                        <Grid item xs={12} md={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                             <TextField fullWidth label="Rua"
                                 value={formData.street}
                                 onChange={e => setFormData({ ...formData, street: e.target.value })} />
                         </Grid>
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <TextField fullWidth label="Bairro"
                                 value={formData.district}
                                 onChange={e => setFormData({ ...formData, district: e.target.value })} />
                         </Grid>
-                        <Grid item xs={12} md={3}>
+                        <Grid size={{ xs: 12, md: 3 }}>
                             <TextField fullWidth label="Cidade"
                                 value={formData.city}
                                 onChange={e => setFormData({ ...formData, city: e.target.value })} />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={{ xs: 12 }}>
                             <Button type="submit" variant="contained" color="primary">
                                 Cadastrar Cliente
                             </Button>

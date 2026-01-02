@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     Box, Button, TextField, Paper, Typography, Grid, Table, TableBody,
     TableCell, TableContainer, TableHead, TableRow, IconButton, Divider
@@ -28,21 +28,24 @@ interface SaleHistory {
     productsSummary: string;
     totalValue: number;
     saleDate: string;
+    manualOsNumber?: number; // Novo campo
 }
 
 export default function Sales() {
     const [salesHistory, setSalesHistory] = useState<SaleHistory[]>([]);
-    
+    const cpfInputRef = useRef<HTMLInputElement>(null);
+
     // Dados da Venda
     const [cpfCliente, setCpfCliente] = useState('');
-    const [clientName, setClientName] = useState(''); 
+    const [clientName, setClientName] = useState('');
     const [entryValue, setEntryValue] = useState<string>('');
+    const [finalPrice, setFinalPrice] = useState<string>(''); // Valor Final Editável
     const [customOsNumber, setCustomOsNumber] = useState<string>('');
     const [saleDate, setSaleDate] = useState(new Date().toISOString().split('T')[0]);
 
     // Produto e Carrinho
     const [currentProductCode, setCurrentProductCode] = useState('');
-    const [currentProductName, setCurrentProductName] = useState(''); 
+    const [currentProductName, setCurrentProductName] = useState('');
     const [currentQuantity, setCurrentQuantity] = useState<number>(1);
     const [cart, setCart] = useState<CartItem[]>([]);
 
@@ -66,7 +69,7 @@ export default function Sales() {
             const response = await api.get(`/clients/by-cpf/${cpfCliente}`);
             setClientName(response.data.fullName);
         } catch (error) {
-            setClientName(''); 
+            setClientName('');
             alert("Cliente não encontrado. Verifique o CPF.");
         }
     }
@@ -111,10 +114,10 @@ export default function Sales() {
             };
 
             setCart([...cart, newItem]);
-            
+
             // Limpar campos
             setCurrentProductCode('');
-            setCurrentProductName(''); 
+            setCurrentProductName('');
             setCurrentQuantity(1);
 
         } catch (error) {
@@ -131,8 +134,19 @@ export default function Sales() {
 
     // --- CÁLCULOS FINANCEIROS ---
     const totalCartValue = cart.reduce((acc, item) => acc + item.subTotal, 0);
-    const entryNumber = parseFloat(entryValue) || 0; // Converte string para número, ou 0 se vazio
-    const remainingBalance = totalCartValue - entryNumber; // Saldo Devedor
+
+    // Efeito para atualizar o Valor Final sugerido sempre que o carrinho mudar
+    useEffect(() => {
+        if (cart.length > 0) {
+            setFinalPrice(totalCartValue.toString());
+        } else {
+            setFinalPrice('');
+        }
+    }, [cart, totalCartValue]);
+
+    const entryNumber = parseFloat(entryValue) || 0;
+    const finalPriceNumber = parseFloat(finalPrice) || 0;
+    const remainingBalance = finalPriceNumber - entryNumber; // Saldo baseado no editável
 
     async function handleFinalizeSale() {
         if (cart.length === 0) {
@@ -155,6 +169,7 @@ export default function Sales() {
                 quantity: item.quantity
             })),
             entryValue: entryNumber,
+            finalPrice: finalPriceNumber, // Envia o valor manual
             customOsNumber: parseInt(customOsNumber),
             saleDate: saleDate ? new Date(saleDate) : new Date()
         };
@@ -162,13 +177,23 @@ export default function Sales() {
         try {
             await api.post('/sales', payload);
             alert('Venda realizada com sucesso!');
-            
+
             setCart([]);
             setCpfCliente('');
-            setClientName(''); 
+            setClientName('');
+            setCart([]);
+            setCpfCliente('');
+            setClientName('');
             setEntryValue('');
+            setFinalPrice('');
+            setCustomOsNumber('');
             setCustomOsNumber('');
             loadSales();
+
+            // Focar no CPF para nova venda
+            if (cpfInputRef.current) {
+                cpfInputRef.current.focus();
+            }
         } catch (error: any) {
             console.error("Erro na venda:", error);
             const msg = error.response?.data?.message || error.response?.data || "Erro desconhecido";
@@ -183,71 +208,72 @@ export default function Sales() {
             <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
                 <Grid container spacing={2}>
                     {/* Cabeçalho da Venda */}
-                    <Grid item xs={12} md={3}>
-                        <TextField 
-                            fullWidth 
-                            label="CPF do Cliente" 
+                    <Grid size={{ xs: 12, md: 3 }}>
+                        <TextField
+                            fullWidth
+                            label="CPF do Cliente"
                             required
-                            value={cpfCliente} 
+                            value={cpfCliente}
                             onChange={e => setCpfCliente(e.target.value)}
-                            onBlur={handleSearchClient} 
+                            onBlur={handleSearchClient}
+                            inputRef={cpfInputRef}
                         />
                     </Grid>
-                    <Grid item xs={12} md={5}>
-                        <TextField 
-                            fullWidth 
-                            label="Nome do Cliente" 
-                            value={clientName} 
-                            disabled 
-                            variant="filled" 
+                    <Grid size={{ xs: 12, md: 5 }}>
+                        <TextField
+                            fullWidth
+                            label="Nome do Cliente"
+                            value={clientName}
+                            disabled
+                            variant="filled"
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={2}>
+                    <Grid size={{ xs: 12, md: 2 }}>
                         <TextField fullWidth label="Nº Manual da OS" required type="number"
                             value={customOsNumber} onChange={e => setCustomOsNumber(e.target.value)} />
                     </Grid>
-                    <Grid item xs={12} md={2}>
+                    <Grid size={{ xs: 12, md: 2 }}>
                         <TextField fullWidth type="date" label="Data" InputLabelProps={{ shrink: true }}
                             value={saleDate} onChange={e => setSaleDate(e.target.value)} />
                     </Grid>
 
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Divider sx={{ my: 2 }}><Typography variant="caption">ADICIONAR PRODUTOS</Typography></Divider>
                     </Grid>
 
                     {/* Adicionar Produto */}
-                    <Grid item xs={12} md={3}>
-                        <TextField 
-                            fullWidth 
-                            label="Código do Produto" 
-                            value={currentProductCode} 
+                    <Grid size={{ xs: 12, md: 3 }}>
+                        <TextField
+                            fullWidth
+                            label="Código do Produto"
+                            value={currentProductCode}
                             onChange={e => setCurrentProductCode(e.target.value)}
                             onBlur={handleSearchProduct}
                         />
                     </Grid>
-                    <Grid item xs={12} md={5}>
-                        <TextField 
-                            fullWidth 
-                            label="Nome do Produto" 
-                            value={currentProductName} 
-                            disabled 
-                            variant="filled" 
+                    <Grid size={{ xs: 12, md: 5 }}>
+                        <TextField
+                            fullWidth
+                            label="Nome do Produto"
+                            value={currentProductName}
+                            disabled
+                            variant="filled"
                         />
                     </Grid>
 
-                    <Grid item xs={12} md={2}>
+                    <Grid size={{ xs: 12, md: 2 }}>
                         <TextField fullWidth label="Qtd" type="number"
                             value={currentQuantity} onChange={e => setCurrentQuantity(parseInt(e.target.value))} />
                     </Grid>
-                    <Grid item xs={12} md={2}>
+                    <Grid size={{ xs: 12, md: 2 }}>
                         <Button variant="outlined" fullWidth sx={{ height: '56px' }} onClick={handleAddItem}>
                             Adicionar
                         </Button>
                     </Grid>
-                    
+
                     {/* Resumo do Carrinho */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <TableContainer component={Paper} variant="outlined" sx={{ mt: 2 }}>
                             <Table size="small">
                                 <TableHead>
@@ -282,28 +308,42 @@ export default function Sales() {
                         <Box sx={{ mt: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
                             <Grid container spacing={2} alignItems="center" justifyContent="flex-end">
                                 {/* Total Geral */}
-                                <Grid item>
+                                <Grid>
                                     <Typography variant="h6">
-                                        Total: <strong>{totalCartValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong>
+                                        Total Calculado: {totalCartValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                     </Typography>
                                 </Grid>
 
-                                {/* Input de Entrada */}
-                                <Grid item xs={12} md={2}>
-                                     <TextField 
-                                        fullWidth 
-                                        label="Valor Entrada (R$)" 
+                                {/* Input de Valor Final (Editável) */}
+                                <Grid size={{ xs: 12, md: 2 }}>
+                                    <TextField
+                                        fullWidth
+                                        label="Total Final (R$)"
                                         type="number"
                                         variant="outlined"
                                         size="small"
                                         sx={{ bgcolor: 'white' }}
-                                        value={entryValue} 
-                                        onChange={e => setEntryValue(e.target.value)} 
+                                        value={finalPrice}
+                                        onChange={e => setFinalPrice(e.target.value)}
+                                    />
+                                </Grid>
+
+                                {/* Input de Entrada */}
+                                <Grid size={{ xs: 12, md: 2 }}>
+                                    <TextField
+                                        fullWidth
+                                        label="Valor Entrada (R$)"
+                                        type="number"
+                                        variant="outlined"
+                                        size="small"
+                                        sx={{ bgcolor: 'white' }}
+                                        value={entryValue}
+                                        onChange={e => setEntryValue(e.target.value)}
                                     />
                                 </Grid>
 
                                 {/* Saldo Devedor (Calculado) */}
-                                <Grid item xs={12} md={3}>
+                                <Grid size={{ xs: 12, md: 3 }}>
                                     <Typography variant="h6" color="error" sx={{ fontWeight: 'bold' }}>
                                         Falta Pagar: {remainingBalance.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                     </Typography>
@@ -313,7 +353,7 @@ export default function Sales() {
                     </Grid>
 
                     {/* Botão Finalizar */}
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                         <Button variant="contained" color="success" fullWidth size="large" onClick={handleFinalizeSale}>
                             FINALIZAR VENDA
                         </Button>
@@ -327,7 +367,7 @@ export default function Sales() {
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell>ID</TableCell>
+                            <TableCell>Nº OS</TableCell>
                             <TableCell>Cliente</TableCell>
                             <TableCell>Resumo</TableCell>
                             <TableCell>Data</TableCell>
@@ -337,7 +377,7 @@ export default function Sales() {
                     <TableBody>
                         {salesHistory.map((sale) => (
                             <TableRow key={sale.id}>
-                                <TableCell>{sale.id}</TableCell>
+                                <TableCell><b>#{sale.manualOsNumber || sale.id}</b></TableCell>
                                 <TableCell>{sale.clientName}</TableCell>
                                 <TableCell>{sale.productsSummary}</TableCell>
                                 <TableCell>{new Date(sale.saleDate).toLocaleDateString()}</TableCell>
