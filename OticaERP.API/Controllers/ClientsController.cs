@@ -41,6 +41,21 @@ namespace OticaERP.API.Controllers
             return client;
         }
 
+
+        // GET: api/Clients/by-cpf/12345678900
+        [HttpGet("by-cpf/{cpf}")]
+        public async Task<ActionResult<Client>> GetClientByCpf(string cpf)
+        {
+            var client = await _context.Clients.FirstOrDefaultAsync(c => c.Cpf == cpf);
+
+            if (client == null)
+            {
+                return NotFound();
+            }
+
+            return client;
+        }
+
         // POST: api/Clients
         [HttpPost]
         public async Task<ActionResult<Client>> PostClient(Client client)

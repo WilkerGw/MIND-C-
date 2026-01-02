@@ -20,5 +20,6 @@ namespace OticaERP.API.Models
         public List<SaleItem> Items { get; set; } = new List<SaleItem>();
 
         public int? ServiceOrderId { get; set; }
+        public ServiceOrder? ServiceOrder { get; set; }
     }
 }

@@ -25,6 +25,7 @@ namespace OticaERP.API.Controllers
             var sales = await _context.Sales
                 .Include(s => s.Client)
                 .Include(s => s.Items)
+                .Include(s => s.ServiceOrder) // Include ServiceOrder linkage
                 .ThenInclude(i => i.Product)
                 .OrderByDescending(s => s.SaleDate)
                 .ToListAsync();
@@ -38,6 +39,7 @@ namespace OticaERP.API.Controllers
                 ProductsSummary = string.Join(", ", s.Items.Select(i => $"{i.Quantity}x {i.Product?.Name}")),
                 TotalValue = s.TotalValue,
                 EntryValue = s.EntryValue,
+                ManualOsNumber = s.ServiceOrder != null ? s.ServiceOrder.ManualOrderNumber : null,
                 SaleDate = s.SaleDate
             }).ToList();
 
@@ -118,7 +120,9 @@ namespace OticaERP.API.Controllers
                     descriptionBuilder.AppendLine($"- {itemDto.Quantity}x {product.Name} ({product.SellingPrice:C} un)");
                 }
 
-                sale.TotalValue = calculatedTotal;
+
+                // 3. Definir Valor Total (Calculado ou Manual)
+                sale.TotalValue = dto.FinalPrice.HasValue ? dto.FinalPrice.Value : calculatedTotal;
 
                 _context.Sales.Add(sale);
                 await _context.SaveChangesAsync();
@@ -161,7 +165,7 @@ namespace OticaERP.API.Controllers
             catch (Exception ex)
             {
                 await transaction.RollbackAsync();
-                return StatusCode(500, "Erro ao processar venda: " + ex.Message);
+                return StatusCode(500, "Erro ao processar venda: " + ex.Message + (ex.InnerException != null ? " | " + ex.InnerException.Message : ""));
             }
         }
     }

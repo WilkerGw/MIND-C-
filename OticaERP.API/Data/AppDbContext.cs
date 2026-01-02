@@ -30,10 +30,12 @@ namespace OticaERP.API.Data
             modelBuilder.Entity<SaleItem>().Property(si => si.SubTotal).HasColumnType("decimal(18,2)");
 
             // Relacionamento OS -> Venda
-            modelBuilder.Entity<ServiceOrder>()
-                .HasOne(so => so.Sale)
-                .WithMany()
-                .HasForeignKey(so => so.SaleId)
+            // Relacionamento 1:1 entre Venda e OS
+            // A OS possui a FK (SaleId)
+            modelBuilder.Entity<Sale>()
+                .HasOne(s => s.ServiceOrder)
+                .WithOne(so => so.Sale)
+                .HasForeignKey<ServiceOrder>(so => so.SaleId)
                 .OnDelete(DeleteBehavior.Restrict);
         }
     }

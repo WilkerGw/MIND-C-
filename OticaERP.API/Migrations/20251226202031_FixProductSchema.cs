@@ -10,9 +10,10 @@ namespace OticaERP.API.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Description",
-                table: "Products");
+            // migrationBuilder.DropColumn(
+            //    name: "Description",
+            //    table: "Products");
+            migrationBuilder.Sql("ALTER TABLE \"Products\" DROP COLUMN IF EXISTS \"Description\";");
         }
 
         /// <inheritdoc />
