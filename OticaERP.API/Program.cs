@@ -39,7 +39,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp",
-        policy => policy.AllowAnyOrigin()
+        policy => policy.WithOrigins("http://localhost:5173", "http://127.0.0.1:5173") // Permitir localhost e 127.0.0.1
                         .AllowAnyMethod()
                         .AllowAnyHeader());
 });
@@ -50,7 +50,7 @@ var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
 
 if (string.IsNullOrEmpty(jwtKey))
 {
-    jwtKey = "chave_secreta_padrao_para_desenvolvimento_apenas_123"; 
+    throw new Exception("FATAL: Variável de ambiente 'JWT_KEY' não configurada!");
 }
 
 var key = Encoding.ASCII.GetBytes(jwtKey);
@@ -62,7 +62,7 @@ builder.Services.AddAuthentication(x =>
 })
 .AddJwtBearer(x =>
 {
-    x.RequireHttpsMetadata = false;
+    x.RequireHttpsMetadata = false; // Em produção deve ser true se usar SSL real
     x.SaveToken = true;
     x.TokenValidationParameters = new TokenValidationParameters
     {
@@ -136,6 +136,11 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection(); // Forçar HTTPS apenas em produção
+}
 
 app.UseCors("AllowReactApp");
 app.UseAuthentication(); 

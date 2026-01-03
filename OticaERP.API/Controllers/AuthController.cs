@@ -72,14 +72,12 @@ namespace OticaERP.API.Controllers
 
             // --- CORREÇÃO AQUI ---
             // Tenta pegar a chave do .env primeiro. Se não achar, tenta do appsettings.
-            // Se ambos falharem, usa uma chave de fallback (segurança contra crash).
             var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") 
                          ?? _configuration["JwtSettings:Key"];
 
             if (string.IsNullOrEmpty(jwtKey))
             {
-                // Fallback de emergência apenas para não dar erro 500 se a config falhar
-                jwtKey = "chave_secreta_padrao_para_desenvolvimento_apenas_123";
+                 throw new Exception("FATAL: Variável de ambiente 'JWT_KEY' não configurada!");
             }
 
             var key = Encoding.ASCII.GetBytes(jwtKey);
