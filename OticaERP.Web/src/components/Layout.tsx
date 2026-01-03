@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import {
     Menu as MenuIcon,
+    Home, // Icone para Início
     People,
     Inventory,
     ShoppingCart,
@@ -28,6 +29,7 @@ export default function Layout() {
     };
 
     const menuItems = [
+        { text: 'Início', icon: <Home />, path: '/' }, // Novo Item
         { text: 'Clientes', icon: <People />, path: '/clients' },
         { text: 'Produtos', icon: <Inventory />, path: '/products' },
         { text: 'Vendas', icon: <ShoppingCart />, path: '/sales' },

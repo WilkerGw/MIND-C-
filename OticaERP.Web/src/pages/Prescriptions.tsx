@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
-    Box, Button, TextField, Paper, Typography, Alert, Table, TableBody, TableCell, 
-    TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent, 
+    Box, Button, TextField, Paper, Typography, Alert, Table, TableBody, TableCell,
+    TableContainer, TableHead, TableRow, IconButton, Dialog, DialogTitle, DialogContent,
     DialogActions, Divider, InputAdornment
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -56,7 +56,7 @@ export default function Prescriptions() {
     async function buscarCliente() {
         if (!cpfBusca) return;
         try {
-            const response = await api.get(`/clients/cpf/${cpfBusca}`);
+            const response = await api.get(`/clients/by-cpf/${cpfBusca}`);
             setClienteId(response.data.id);
             setClienteNome(response.data.fullName);
             setMensagem(null);
@@ -86,7 +86,7 @@ export default function Prescriptions() {
 
             await api.post('/prescriptions', payload);
             setMensagem({ tipo: 'success', texto: 'Receita registrada com sucesso!' });
-            
+
             // Limpar Campos
             setCpfBusca(''); setClienteId(null); setClienteNome(''); setExamDate('');
             setOdEsf(''); setOdCil(''); setOdEixo('');
@@ -101,11 +101,11 @@ export default function Prescriptions() {
     }
 
     async function handleExcluir(id: number) {
-        if(!confirm("Tem certeza que deseja apagar esta receita?")) return;
+        if (!confirm("Tem certeza que deseja apagar esta receita?")) return;
         try {
             await api.delete(`/prescriptions/${id}`);
             setPrescriptions(prev => prev.filter(p => p.id !== id));
-        } catch(error) {
+        } catch (error) {
             alert("Erro ao excluir.");
         }
     }
@@ -126,13 +126,13 @@ export default function Prescriptions() {
             {mensagem && <Alert severity={mensagem.tipo} sx={{ mb: 2 }} onClose={() => setMensagem(null)}>{mensagem.texto}</Alert>}
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                
+
                 {/* --- LADO ESQUERDO: FORMULÁRIO (OCUPA 8 COLUNAS) --- */}
                 <div className="col-span-12 md:col-span-8">
                     <Paper elevation={3} sx={{ p: 3 }}>
                         <Typography variant="h6" gutterBottom color="primary">Nova Receita</Typography>
                         <form onSubmit={handleSalvar}>
-                            
+
                             {/* Busca Cliente */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                                 <TextField
@@ -217,8 +217,8 @@ export default function Prescriptions() {
                             </TableHead>
                             <TableBody>
                                 {prescriptions.map((row) => (
-                                    <TableRow 
-                                        key={row.id} hover 
+                                    <TableRow
+                                        key={row.id} hover
                                         sx={{ cursor: 'pointer' }}
                                     >
                                         <TableCell onClick={() => handleOpenDetails(row)}>
@@ -254,9 +254,9 @@ export default function Prescriptions() {
                             <Typography variant="body2" color="text.secondary" gutterBottom>
                                 Exame realizado em: {new Date(selectedPrescription.examDate).toLocaleDateString()}
                             </Typography>
-                            
+
                             <Divider sx={{ my: 2 }} />
-                            
+
                             {/* Visualização OD */}
                             <Typography variant="subtitle2" color="primary">Olho Direito (OD)</Typography>
                             <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
@@ -274,7 +274,7 @@ export default function Prescriptions() {
                             </Box>
 
                             <Divider sx={{ my: 1 }} />
-                            
+
                             <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 2 }}>
                                 <Typography><strong>DNP:</strong> {selectedPrescription.dnp}</Typography>
                                 <Typography><strong>Adição:</strong> {selectedPrescription.adicao}</Typography>

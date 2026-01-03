@@ -8,7 +8,8 @@ import Products from "./pages/Products";
 import Sales from "./pages/Sales";
 import Appointments from "./pages/Appointments";
 import ServiceOrders from "./pages/ServiceOrders";
-import Prescriptions from "./pages/Prescriptions"; 
+import Prescriptions from "./pages/Prescriptions";
+import Dashboard from "./pages/Dashboard";
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { signed } = useContext(AuthContext);
@@ -29,14 +30,7 @@ function App() {
               </PrivateRoute>
             }
           >
-            <Route
-              index
-              element={
-                <h2 style={{ textAlign: "center", marginTop: "50px" }}>
-                  Bem-vindo ao Sistema da Ótica!
-                </h2>
-              }
-            />
+            <Route index element={<Dashboard />} />
             <Route path="clients" element={<Clients />} />
             <Route path="products" element={<Products />} />
             <Route path="sales" element={<Sales />} />
