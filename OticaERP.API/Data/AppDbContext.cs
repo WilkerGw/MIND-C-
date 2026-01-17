@@ -15,6 +15,7 @@ namespace OticaERP.API.Data
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<ServiceOrder> ServiceOrders { get; set; }
         public DbSet<Prescription> Prescriptions { get; set; }
+        public DbSet<Printer> Printers { get; set; } // NOVO
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

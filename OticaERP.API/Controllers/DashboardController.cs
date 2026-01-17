@@ -43,7 +43,15 @@ namespace OticaERP.API.Controllers
                 .Where(s => s.SaleDate >= startOfMonth)
                 .SumAsync(s => s.TotalValue);
 
-            // 4. Ordens de Serviço em Aberto (Status != "Entregue")
+            // 4. Vendas Totais do Mês (Ano Passado)
+            var startOfLastYearMonth = startOfMonth.AddYears(-1);
+            var endOfLastYearMonth = startOfLastYearMonth.AddMonths(1);
+
+            var monthlySalesPreviousYear = await _context.Sales
+                .Where(s => s.SaleDate >= startOfLastYearMonth && s.SaleDate < endOfLastYearMonth)
+                .SumAsync(s => s.TotalValue);
+
+            // 5. Ordens de Serviço em Aberto (Status != "Entregue")
             var activeOrders = await _context.ServiceOrders
                 .CountAsync(so => so.Status != "Entregue" && so.Status != "Concluído");
 
@@ -52,6 +60,7 @@ namespace OticaERP.API.Controllers
                 DailySalesTotal = dailySales,
                 DailySalesPreviousYear = lastYearSales,
                 MonthlySalesTotal = monthlySales,
+                MonthlySalesPreviousYear = monthlySalesPreviousYear,
                 ActiveServiceOrdersCount = activeOrders
             });
         }

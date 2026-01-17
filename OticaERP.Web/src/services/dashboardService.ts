@@ -4,6 +4,7 @@ export interface DashboardStats {
     dailySalesTotal: number;
     dailySalesPreviousYear: number;
     monthlySalesTotal: number;
+    monthlySalesPreviousYear: number;
     activeServiceOrdersCount: number;
 }
 

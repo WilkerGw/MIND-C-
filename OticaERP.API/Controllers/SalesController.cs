@@ -4,6 +4,7 @@ using OticaERP.API.Data;
 using OticaERP.API.DTOs;
 using OticaERP.API.Models;
 using System.Text;
+using Microsoft.Extensions.DependencyInjection; // Necessário para GetRequiredService
 
 namespace OticaERP.API.Controllers
 {
@@ -166,6 +167,28 @@ namespace OticaERP.API.Controllers
             {
                 await transaction.RollbackAsync();
                 return StatusCode(500, "Erro ao processar venda: " + ex.Message + (ex.InnerException != null ? " | " + ex.InnerException.Message : ""));
+            }
+        }
+
+        [HttpPost("{id}/print")]
+        public async Task<IActionResult> PrintSale(int id)
+        {
+            var printer = await _context.Printers.FirstOrDefaultAsync(p => p.IsActive);
+            if (printer == null)
+            {
+                return BadRequest("Nenhuma impressora ativa encontrada no sistema.");
+            }
+
+            try
+            {
+                var printingService = HttpContext.RequestServices.GetRequiredService<OticaERP.API.Services.PrintingService>();
+                
+                await printingService.PrintSaleAsync(id, printer.Id);
+                return Ok(new { message = "Comprovante enviado para impressão." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Erro ao imprimir: {ex.Message}");
             }
         }
     }

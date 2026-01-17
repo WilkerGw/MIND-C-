@@ -5,6 +5,7 @@ namespace OticaERP.API.DTOs
         public decimal DailySalesTotal { get; set; }
         public decimal DailySalesPreviousYear { get; set; } // Mesmo dia ano passado
         public decimal MonthlySalesTotal { get; set; }
+        public decimal MonthlySalesPreviousYear { get; set; } // Mesmo mês ano passado
         public int ActiveServiceOrdersCount { get; set; }
     }
 

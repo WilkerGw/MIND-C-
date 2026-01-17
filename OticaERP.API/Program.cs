@@ -11,6 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 // --- 0. Carregar variáveis de ambiente ---
 Env.Load();
 
+// Registrar Serviços
+builder.Services.AddScoped<OticaERP.API.Services.PrintingService>();
+
 // --- DIAGNÓSTICO DE CONEXÃO ---
 var envConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
 var appSettingsConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");

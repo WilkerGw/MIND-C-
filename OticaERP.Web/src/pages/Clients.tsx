@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import {
-    Box, Button, TextField, Paper, Typography, Grid, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, MenuItem, Select, InputLabel, FormControl
-} from '@mui/material';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { Card } from '../components/ui/Card';
+import { Table, TableBody, TableCell, TableHead, TableRow } from '../components/ui/Table';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 
-// Definição do Tipo Cliente (igual ao Backend)
 interface Client {
     id?: number;
     fullName: string;
@@ -26,7 +27,6 @@ export default function Clients() {
         gender: '', street: '', district: '', zipCode: '', city: ''
     });
 
-    // Carregar clientes ao abrir a tela
     useEffect(() => {
         loadClients();
     }, []);
@@ -40,17 +40,14 @@ export default function Clients() {
         }
     }
 
-    // --- FUNÇÃO: Busca de CEP ---
     async function buscarCep(ev: React.FocusEvent<HTMLInputElement>) {
-        const cep = ev.target.value.replace(/\D/g, ''); // Remove tudo que não for número
+        const cep = ev.target.value.replace(/\D/g, '');
 
-        // Verifica se tem 8 dígitos
         if (cep.length !== 8) {
             return;
         }
 
         try {
-            // Faz a requisição para a API pública do ViaCEP
             const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
             const data = await response.json();
 
@@ -59,7 +56,6 @@ export default function Clients() {
                 return;
             }
 
-            // Preenche o formulário com os dados retornados
             setFormData(prev => ({
                 ...prev,
                 street: data.logradouro,
@@ -72,18 +68,17 @@ export default function Clients() {
             alert("Erro ao buscar endereço pelo CEP. Verifique sua conexão.");
         }
     }
-    // ---------------------------------
 
     async function handleSave(e: React.FormEvent) {
         e.preventDefault();
         try {
             await api.post('/clients', formData);
             alert('Cliente cadastrado com sucesso!');
-            setFormData({ // Limpar formulário
+            setFormData({
                 fullName: '', cpf: '', phone: '', dateOfBirth: '',
                 gender: '', street: '', district: '', zipCode: '', city: ''
             });
-            loadClients(); // Recarregar lista
+            loadClients();
         } catch (error: any) {
             console.error("Erro ao salvar:", error);
             const errorMessage = error.response?.data
@@ -93,7 +88,6 @@ export default function Clients() {
         }
     }
 
-    // Função auxiliar para mostrar o texto amigável na tabela
     function formatGender(genderCode: string) {
         if (genderCode === 'M') return 'Masculino';
         if (genderCode === 'F') return 'Feminino';
@@ -101,96 +95,120 @@ export default function Clients() {
     }
 
     return (
-        <Box>
-            <Typography variant="h4" gutterBottom>Gerenciar Clientes</Typography>
-
+        <div className="space-y-6">
             {/* Formulário de Cadastro */}
-            <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+            <Card>
                 <form onSubmit={handleSave}>
-                    <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 6 }}>
-                            <TextField fullWidth label="Nome Completo" required
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="md:col-span-6">
+                            <Input
+                                label="Nome Completo"
+                                required
                                 value={formData.fullName}
-                                onChange={e => setFormData({ ...formData, fullName: e.target.value })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth label="CPF" required
+                                onChange={e => setFormData({ ...formData, fullName: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <Input
+                                label="CPF"
+                                required
                                 value={formData.cpf}
-                                onChange={e => setFormData({ ...formData, cpf: e.target.value })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth label="Telefone"
+                                onChange={e => setFormData({ ...formData, cpf: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <Input
+                                label="Telefone"
                                 value={formData.phone}
-                                onChange={e => setFormData({ ...formData, phone: e.target.value })} />
-                        </Grid>
+                                onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
 
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth type="date" label="Data Nascimento" InputLabelProps={{ shrink: true }}
+                        <div className="md:col-span-3">
+                            <Input
+                                type="date"
+                                label="Data Nascimento"
                                 value={formData.dateOfBirth}
-                                onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <FormControl fullWidth>
-                                <InputLabel>Gênero</InputLabel>
-                                <Select label="Gênero"
-                                    value={formData.gender}
-                                    onChange={(e) => setFormData({ ...formData, gender: e.target.value as string })}>
-                                    {/* ATUALIZAÇÃO: Valores alterados para salvar apenas a sigla */}
-                                    <MenuItem value="M">Masculino</MenuItem>
-                                    <MenuItem value="F">Feminino</MenuItem>
-                                    <MenuItem value="Outro">Outro</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
+                                onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <Select
+                                label="Gênero"
+                                value={formData.gender}
+                                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                                fullWidth
+                            >
+                                <option value="">Selecione...</option>
+                                <option value="M">Masculino</option>
+                                <option value="F">Feminino</option>
+                                <option value="Outro">Outro</option>
+                            </Select>
+                        </div>
 
                         {/* Endereço */}
-                        <Grid size={{ xs: 12, md: 2 }}>
-                            <TextField
-                                fullWidth
+                        <div className="md:col-span-2">
+                            <Input
                                 label="CEP"
                                 value={formData.zipCode}
                                 onChange={e => setFormData({ ...formData, zipCode: e.target.value })}
-                                onBlur={buscarCep} // Busca endereço ao sair do campo
-                                helperText="Digite o CEP para buscar"
+                                onBlur={buscarCep}
+                                placeholder="Digite o CEP"
+                                fullWidth
                             />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 4 }}>
-                            <TextField fullWidth label="Rua"
+                        </div>
+                        <div className="md:col-span-4">
+                            <Input
+                                label="Rua"
                                 value={formData.street}
-                                onChange={e => setFormData({ ...formData, street: e.target.value })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth label="Bairro"
+                                onChange={e => setFormData({ ...formData, street: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <Input
+                                label="Bairro"
                                 value={formData.district}
-                                onChange={e => setFormData({ ...formData, district: e.target.value })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth label="Cidade"
+                                onChange={e => setFormData({ ...formData, district: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <Input
+                                label="Cidade"
                                 value={formData.city}
-                                onChange={e => setFormData({ ...formData, city: e.target.value })} />
-                        </Grid>
+                                onChange={e => setFormData({ ...formData, city: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
 
-                        <Grid size={{ xs: 12 }}>
-                            <Button type="submit" variant="contained" color="primary">
+                        <div className="col-span-12">
+                            <Button type="submit" variant="primary">
                                 Cadastrar Cliente
                             </Button>
-                        </Grid>
-                    </Grid>
+                        </div>
+                    </div>
                 </form>
-            </Paper>
+            </Card>
 
             {/* Lista de Clientes */}
-            <Typography variant="h6" gutterBottom>Clientes Cadastrados</Typography>
-            <TableContainer component={Paper}>
+            <Card>
+                <h2 className="text-xl font-semibold text-gray-800 mb-4">Clientes Cadastrados</h2>
+
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell>ID</TableCell>
-                            <TableCell>Nome</TableCell>
-                            <TableCell>CPF</TableCell>
-                            <TableCell>Gênero</TableCell> {/* Adicionei coluna Gênero para visualização */}
-                            <TableCell>Telefone</TableCell>
-                            <TableCell>Cidade</TableCell>
+                            <TableCell as="th">ID</TableCell>
+                            <TableCell as="th">Nome</TableCell>
+                            <TableCell as="th">CPF</TableCell>
+                            <TableCell as="th">Gênero</TableCell>
+                            <TableCell as="th">Telefone</TableCell>
+                            <TableCell as="th">Cidade</TableCell>
+                            <TableCell as="th">Contato</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -199,17 +217,28 @@ export default function Clients() {
                                 <TableCell>{client.id}</TableCell>
                                 <TableCell>{client.fullName}</TableCell>
                                 <TableCell>{client.cpf}</TableCell>
-                                <TableCell>{formatGender(client.gender)}</TableCell> {/* Formata M/F para ler na tabela */}
+                                <TableCell>{formatGender(client.gender)}</TableCell>
                                 <TableCell>{client.phone}</TableCell>
                                 <TableCell>{client.city}</TableCell>
+                                <TableCell>
+                                    <a
+                                        href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center justify-center p-2 text-green-600 hover:bg-green-50 rounded-full transition-colors"
+                                        title="Conversar no WhatsApp"
+                                    >
+                                        <WhatsAppIcon />
+                                    </a>
+                                </TableCell>
                             </TableRow>
                         ))}
                         {clients.length === 0 && (
-                            <TableRow><TableCell colSpan={6} align="center">Nenhum cliente cadastrado.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={7} align="center" className="text-gray-500 py-6">Nenhum cliente cadastrado.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
-            </TableContainer>
-        </Box>
+            </Card>
+        </div>
     );
 }

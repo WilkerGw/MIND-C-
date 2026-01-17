@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-    Box, Button, TextField, Paper, Typography, Grid, Table, TableBody,
-    TableCell, TableContainer, TableHead, TableRow, MenuItem, Select, InputLabel, FormControl, Chip
-} from '@mui/material';
 import api from '../services/api';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { Card } from '../components/ui/Card';
+import { Table, TableBody, TableCell, TableHead, TableRow } from '../components/ui/Table';
 
 // Tipagem igual ao Backend (Model Product.cs)
 interface Product {
@@ -70,17 +71,6 @@ export default function Products() {
         }
     }
 
-    // Função para traduzir o número da categoria para texto
-    function getCategoryName(id: number) {
-        switch (id) {
-            case 0: return "Armação";
-            case 1: return "Lente";
-            case 2: return "Óculos Solar";
-            case 3: return "Serviço";
-            default: return "Desconhecido";
-        }
-    }
-
     async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -103,95 +93,94 @@ export default function Products() {
     }
 
     return (
-        <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h4">Gerenciar Estoque</Typography>
-
-                <Box>
-                    <input
-                        type="file"
-                        accept=".csv"
-                        hidden
-                        ref={fileInputRef}
-                        onChange={handleImport}
-                    />
-                    <Button
-                        variant="outlined"
-                        startIcon={<CloudUploadIcon />}
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        Importar CSV
-                    </Button>
-                </Box>
-            </Box>
-
+        <div className="space-y-6">
             {/* Formulário */}
-            <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
+            <Card>
                 <form onSubmit={handleSave}>
-                    <Grid container spacing={2}>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth label="Cód. Produto" required
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div className="md:col-span-3">
+                            <Input
+                                label="Cód. Produto"
+                                required
                                 value={formData.productCode}
-                                onChange={e => setFormData({ ...formData, productCode: e.target.value })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 5 }}>
-                            <TextField fullWidth label="Nome do Produto" required
+                                onChange={e => setFormData({ ...formData, productCode: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-5">
+                            <Input
+                                label="Nome do Produto"
+                                required
                                 value={formData.name}
-                                onChange={e => setFormData({ ...formData, name: e.target.value })} />
-                        </Grid>
+                                onChange={e => setFormData({ ...formData, name: e.target.value })}
+                                fullWidth
+                            />
+                        </div>
 
-                        <Grid size={{ xs: 12, md: 4 }}>
-                            <FormControl fullWidth>
-                                <InputLabel>Categoria</InputLabel>
-                                <Select label="Categoria"
-                                    value={formData.category}
-                                    onChange={(e) => setFormData({ ...formData, category: e.target.value as string })}>
-                                    <MenuItem value="Armação">Armação</MenuItem>
-                                    <MenuItem value="Lente">Lente</MenuItem>
-                                    <MenuItem value="Óculos Solar">Óculos Solar</MenuItem>
-                                    <MenuItem value="Serviço">Serviço</MenuItem>
-                                    <MenuItem value="Lente de Contato">Lente de Contato</MenuItem>
-                                    <MenuItem value="Acessório">Acessório</MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Grid>
+                        <div className="md:col-span-4">
+                            <Select
+                                label="Categoria"
+                                value={formData.category}
+                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                fullWidth
+                            >
+                                <option value="Armação">Armação</option>
+                                <option value="Lente">Lente</option>
+                                <option value="Óculos Solar">Óculos Solar</option>
+                                <option value="Serviço">Serviço</option>
+                                <option value="Lente de Contato">Lente de Contato</option>
+                                <option value="Acessório">Acessório</option>
+                            </Select>
+                        </div>
 
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth type="number" label="Qtd. Estoque"
+                        <div className="md:col-span-3">
+                            <Input
+                                type="number"
+                                label="Qtd. Estoque"
                                 value={formData.stockQuantity}
-                                onChange={e => setFormData({ ...formData, stockQuantity: Number(e.target.value) })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth type="number" label="Preço de Custo (R$)"
+                                onChange={e => setFormData({ ...formData, stockQuantity: Number(e.target.value) })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <Input
+                                type="number"
+                                label="Preço de Custo (R$)"
                                 value={formData.costPrice}
-                                onChange={e => setFormData({ ...formData, costPrice: Number(e.target.value) })} />
-                        </Grid>
-                        <Grid size={{ xs: 12, md: 3 }}>
-                            <TextField fullWidth type="number" label="Preço de Venda (R$)"
+                                onChange={e => setFormData({ ...formData, costPrice: Number(e.target.value) })}
+                                fullWidth
+                            />
+                        </div>
+                        <div className="md:col-span-3">
+                            <Input
+                                type="number"
+                                label="Preço de Venda (R$)"
                                 value={formData.sellingPrice}
-                                onChange={e => setFormData({ ...formData, sellingPrice: Number(e.target.value) })} />
-                        </Grid>
+                                onChange={e => setFormData({ ...formData, sellingPrice: Number(e.target.value) })}
+                                fullWidth
+                            />
+                        </div>
 
-                        <Grid size={12}>
-                            <Button type="submit" variant="contained" color="success">
+                        <div className="col-span-12">
+                            <Button type="submit" variant="primary">
                                 Salvar Produto
                             </Button>
-                        </Grid>
-                    </Grid>
+                        </div>
+                    </div>
                 </form>
-            </Paper>
+            </Card>
 
             {/* Tabela de Listagem */}
-            <TableContainer component={Paper}>
+            <Card>
                 <Table>
                     <TableHead>
                         <TableRow>
-                            <TableCell>Cód</TableCell>
-                            <TableCell>Nome</TableCell>
-                            <TableCell>Categoria</TableCell>
-                            <TableCell>Estoque</TableCell>
-                            <TableCell>P. Custo</TableCell>
-                            <TableCell>P. Venda</TableCell>
+                            <TableCell as="th">Cód</TableCell>
+                            <TableCell as="th">Nome</TableCell>
+                            <TableCell as="th">Categoria</TableCell>
+                            <TableCell as="th">Estoque</TableCell>
+                            <TableCell as="th">P. Custo</TableCell>
+                            <TableCell as="th">P. Venda</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -200,23 +189,24 @@ export default function Products() {
                                 <TableCell>{p.productCode}</TableCell>
                                 <TableCell>{p.name}</TableCell>
                                 <TableCell>
-                                    <Chip label={p.category} size="small" />
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        {p.category}
+                                    </span>
                                 </TableCell>
-                                <TableCell
-                                    sx={{ color: p.stockQuantity < 5 ? 'red' : 'inherit', fontWeight: 'bold' }}>
+                                <TableCell className={p.stockQuantity < 5 ? 'text-red-600 font-bold' : 'font-bold'}>
                                     {p.stockQuantity}
                                 </TableCell>
                                 <TableCell>
                                     {p.costPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>
+                                <TableCell className="font-bold">
                                     {p.sellingPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
-            </TableContainer>
-        </Box>
+            </Card>
+        </div>
     );
 }

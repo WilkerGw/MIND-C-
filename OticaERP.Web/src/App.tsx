@@ -10,6 +10,7 @@ import Appointments from "./pages/Appointments";
 import ServiceOrders from "./pages/ServiceOrders";
 import Prescriptions from "./pages/Prescriptions";
 import Dashboard from "./pages/Dashboard";
+import Printers from "./pages/Printers";
 
 const PrivateRoute = ({ children }: { children: JSX.Element }) => {
   const { signed } = useContext(AuthContext);
@@ -36,7 +37,8 @@ function App() {
             <Route path="sales" element={<Sales />} />
             <Route path="appointments" element={<Appointments />} />
             <Route path="service-orders" element={<ServiceOrders />} />
-            <Route path="prescriptions" element={<Prescriptions />} />{" "}
+            <Route path="prescriptions" element={<Prescriptions />} />
+            <Route path="printers" element={<Printers />} />
           </Route>
         </Routes>
       </AuthProvider>
