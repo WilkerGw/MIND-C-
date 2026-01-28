@@ -14,6 +14,7 @@ import {
 import { useNavigate, Outlet, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { getDashboardStats } from "../services/dashboardService";
+import ChatWidget from "./Chat/ChatWidget";
 
 export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -205,6 +206,7 @@ export default function Layout() {
           </div>
         </main>
       </div>
+      <ChatWidget />
     </div>
   );
 }
