@@ -27,7 +27,7 @@ namespace OticaERP.API.Controllers
                 .Include(s => s.Client)
                 .Include(s => s.Items)
                 .Include(s => s.ServiceOrder) // Include ServiceOrder linkage
-                .ThenInclude(i => i.Product)
+                .ThenInclude(i => i!.Product)
                 .OrderByDescending(s => s.SaleDate)
                 .ToListAsync();
 

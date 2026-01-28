@@ -13,6 +13,7 @@ Env.Load();
 
 // Registrar Serviços
 builder.Services.AddScoped<OticaERP.API.Services.PrintingService>();
+builder.Services.AddHttpClient();
 
 // --- DIAGNÓSTICO DE CONEXÃO ---
 var envConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");

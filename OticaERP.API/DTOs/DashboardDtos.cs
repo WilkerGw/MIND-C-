@@ -11,7 +11,7 @@ namespace OticaERP.API.DTOs
 
     public class SalesHistoryDto
     {
-        public string Period { get; set; } // "MM/yyyy"
+        public required string Period { get; set; } // "MM/yyyy"
         public decimal TotalValue { get; set; }
     }
 }
